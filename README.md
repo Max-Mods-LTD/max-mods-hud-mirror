@@ -1,25 +1,41 @@
-# Max Mods HUD Mirror — car prototype 0.1.1
+# Max Mods HUD Mirror — car and Android prototype 0.2.0
 
 Android screen mirroring to the **windscreen head-up display** on a BMW
 with iDrive 7 and Robert Nisipeanu's `cluster-render` installed.
 
-**Experimental build. No successful hardware run yet.** The APK is
-compiled and signed; protocol and stop conditions are tested on the host.
-The first on-car check is an eight-second HUD test pattern. The renderer's
-800 × 480 HUD canvas is its current default, whose exact size remains
-unverified on this M4.
+**Experimental build.** Max confirmed that 0.1.1 displayed the HUD test and
+briefly mirrored his phone, then reported poor sharpness, about 1 fps,
+cropping and intermittent `Phone frames stopped` errors. Version 0.2.0
+reworks capture and streaming; its performance and layouts still need a
+new on-car check. Host transport tests delivered approximately 30 fps.
+That measures the Java-to-Node stream, not the physical projector.
 
 ## What this version does
 
 - Captures an Android screen or the single app selected in Android's
-  permission dialog. Sends a 400 × 240 RGBA picture at up to 4 frames/s.
+  permission dialog. Fits the entire image into a 768 × 432 canvas, with
+  no crop or stretch, and follows portrait/landscape changes.
+- Targets 30 fps over a continuous compressed video stream. This replaces
+  400 × 240 screenshots and the old 250 ms polling delay. The car app
+  reports received fps; Wi-Fi, the renderer's shared upload budget and
+  projector behaviour determine the actual displayed rate.
+- Defaults to **Compact**, with the picture above a clear lower HUD area.
+  **HUD size** toggles between Compact and Full screen while running.
+  Factory speed and sign visibility must be checked on the car; this app
+  does not recreate BMW's speed or traffic-sign graphics.
+- Keeps a still screen visible while the phone confirms capture is live.
+  A hidden shared app clears the image until a new picture arrives.
+  A stopped capture or lost connection clears output.
+- Includes the current version and a **What's new** section in the native
+  car app. **Previous change / Next change** works with the touchscreen or
+  iDrive controller. Release history is in [CHANGELOG.md](CHANGELOG.md).
 - Draws on the existing renderer's `hud` target. It does not patch the
   CarPlay/Android Auto binaries or change firmware, slot IDs or scene IDs.
 - Requires live zero-speed and Park readings. Leaving Park, movement,
   stale/invalid telemetry, a lost connection or leaving the car app's page
   stops output. Stop is also available on the phone's notification.
 - Uses a local Wi-Fi pairing code and an ephemeral session token. The car
-  pulls frames from the phone; no incoming car firewall port is opened.
+  opens the stream from the phone; no incoming car firewall port is opened.
 - Keeps only the latest screenshot in RAM. No screenshot or pairing token
   is saved, uploaded to an internet service or written to a log.
 
@@ -31,8 +47,13 @@ use a trusted BMW hotspot. A session expires after ten minutes.
 
 ## First test
 
-1. Install the [Android companion app](https://github.com/Max-Mods-LTD/max-mods-hud-mirror/raw/refs/heads/main/downloads/Max_Mods_HUD_Mirror_Android_v0.1.0.apk)
-   on the Samsung phone.
+**Upgrading:** update both apps to **0.2.0**. In the car Store open
+**Settings > Check now** and install when **Available 0.2.0** appears.
+Install the new APK over the existing phone app; the signing identity is
+unchanged. Stop the old sharing session and pair again after updating.
+
+1. Install the [Android companion app 0.2.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.2.0.apk)
+   on the Samsung phone. The old APK is retained only for rollback.
 2. Keep Robert's `robertnisipeanu/idrive-apps` and
    `robertnisipeanu/mgu-store` sources enabled in the car's Store so
    dependencies can resolve. In **Settings > Add source**, enter
@@ -40,14 +61,17 @@ use a trusted BMW hotspot. A session expires after ten minutes.
    **Max Mods HUD Mirror**.
 3. Keep the car stationary in **P**, turn its HUD on, then open **Max Mods
    HUD Mirror** in iDrive. Press **Test HUD (8 seconds)**. A border/cross
-   should appear on the windscreen, then disappear. If it does not, stop
+   should appear in the selected layout, then disappear. If it does not, stop
    here and report the exact status shown in the car app.
 4. Connect the phone to the BMW's Wi-Fi hotspot. Open the Android app,
    press **Start sharing**, approve Android's capture prompt and read the
    address/code shown, e.g. `172.16.222.23/12345678`.
 5. In the car app press **Pair phone** and enter that address/code. Press
    **Start mirror**. Leave the car app page open. Use the phone's Home
-   button to show something else; landscape usually fills more of the HUD.
+   button to show something else; landscape gives the wide panel in Max's
+   reference. All four edges of the phone screen should remain visible.
+   Use **HUD size** to compare Compact and Full screen. Check whether
+   BMW's speed and limit sign remain visible in Compact.
 6. Press **Stop mirror** in the car and **Stop sharing** on the phone when
    finished. Check that the original HUD content remains normal.
 
@@ -58,8 +82,15 @@ no BMW SDK is included here.
 
 - Install fails at `generateSomeipInterfaces`: version 0.1.0 incorrectly
   requested getters on two notification-only gear fields. In the Store,
-  open **Settings > Check now**, confirm **Available 0.1.1**, and retry.
-  The Android companion stays at 0.1.0; it does not need reinstalling.
+  open **Settings > Check now**, confirm **Available 0.2.0**, and retry.
+- `Phone frames stopped` on 0.1.x: the old app confused a still picture
+  with a dead capture. Update **both** apps to 0.2.0. The new health checks
+  use capture-worker heartbeats independently of image changes.
+- Low fps: read the **receiving ... fps** status while something on the
+  phone is actually moving. A still picture legitimately produces no new
+  pictures. Received fps does not prove the projector displayed every one.
+- Compact hides BMW's speed/signs: report a HUD photograph. A reserved
+  empty area alone does not prove the factory elements share that slot.
 - `Waiting for live speed and Park signals`: the read-only vehicle
   interfaces have not supplied valid readings. It stays blocked. Send
   the exact message and the car's model/software version.
@@ -73,7 +104,8 @@ no BMW SDK is included here.
   displayed address is unchanged. Android's local-network access prompt,
   if shown by the device, must permit the connection.
 - Small portrait picture: the prototype preserves the phone's aspect
-  ratio. Rotate the phone to landscape. Cropping/zoom is a later refinement.
+  ratio. Rotate the phone to landscape; enlarging portrait content while
+  keeping the complete tall screen necessarily leaves space at the sides.
 
 ## Remove
 
@@ -93,6 +125,7 @@ node tools/pack_car.js                 # SDK-free source package
 node tests/test_car.js
 node tests/test_vehicle_signals.js
 node tests/test_package.js
+node tests/test_stream_decoder.js
 ```
 
 `tools/build_android.py` builds with Android SDK platform 35, build tools
@@ -102,6 +135,7 @@ node tests/test_package.js
 and newer and targets API 35. It uses Android framework APIs only.
 
 See `VALIDATION.md` for what was actually checked and what needs hardware.
+See `STREAM_PROTOCOL.md` for the bounded video transport and capture states.
 The initial test signing key is retained privately for follow-up builds.
 
 ## Credits

@@ -9,6 +9,9 @@ import os
 import pathlib
 import subprocess
 import zipfile
+import hashlib
+import shutil
+import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build' / 'android'
@@ -19,7 +22,8 @@ android = sdk / 'platforms' / 'android-35' / 'android.jar'
 ecj = pathlib.Path(os.environ['ECJ_JAR'])
 sources = sorted((ROOT / 'android' / 'app' / 'src' / 'main' / 'java').rglob('*.java'))
 classes = OUT / 'classes'
-classes.mkdir(exist_ok=True)
+if classes.exists(): shutil.rmtree(classes)
+classes.mkdir()
 
 def run(*args):
     subprocess.run([str(x) for x in args], check=True)
@@ -42,9 +46,14 @@ if not key.exists():
     run('keytool', '-genkeypair', '-keystore', key, '-storepass', password, '-keypass', password,
         '-alias', 'hudmirror', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '3650',
         '-dname', 'CN=Max Mods HUD Mirror Prototype')
-dest = ROOT / 'dist' / 'Max_Mods_HUD_Mirror_Android_v0.1.0.apk'
+version = ET.parse(ROOT / 'android/app/src/main/AndroidManifest.xml').getroot().attrib['{http://schemas.android.com/apk/res/android}versionName']
+dest = ROOT / 'dist' / ('Max_Mods_HUD_Mirror_Android_v' + version + '.apk')
 dest.parent.mkdir(exist_ok=True)
 run(tools / 'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hudmirror', '--ks-pass', 'pass:' + password,
     '--key-pass', 'pass:' + password, '--out', dest, aligned)
 run(tools / 'apksigner', 'verify', '--verbose', dest)
+published = ROOT / 'downloads' / dest.name
+published.parent.mkdir(exist_ok=True)
+shutil.copyfile(dest, published)
+published.with_suffix('.apk.sha256').write_text(hashlib.sha256(published.read_bytes()).hexdigest() + '  ' + published.name + '\n')
 print('Built', dest)

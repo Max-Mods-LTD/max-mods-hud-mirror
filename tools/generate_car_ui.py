@@ -4,13 +4,16 @@ import json
 import pathlib
 import shutil
 import uuid
+import textwrap
 from xml.sax.saxutils import escape
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CAR = ROOT / 'car'
 APP = 'maxmods_hud_mirror'
-VERSION = '0.1.1'
+RELEASES = json.loads((ROOT / 'release_notes.json').read_text())['releases']
+RELEASE = RELEASES[0]
+VERSION = RELEASE['version']
 TREE = CAR / (APP + '@' + VERSION)
 NS = uuid.UUID('61e3f454-5dc3-4c41-8f08-e5d94750f4cd')
 
@@ -21,16 +24,33 @@ def write(p, obj):
 def uid(name):
     return str(uuid.uuid5(NS, name))
 
+release_lines = [textwrap.wrap(change, width=60) for change in RELEASE['changes']]
+assert all(0 < len(lines) <= 2 for lines in release_lines), 'Keep each release note within two 60-character lines'
+generated_notes = {'version': VERSION, 'phoneVersion': RELEASE['phoneVersion'], 'changes': RELEASE['changes'], 'lines': release_lines}
+(CAR / 'src' / 'release_notes.js').write_text('// SPDX-License-Identifier: GPL-3.0-or-later\n// Generated from release_notes.json.\n\'use strict\';\nmodule.exports = ' + json.dumps(generated_notes, indent=2) + ';\n')
 rows = [
     (10, 'title', 'mirrorTitle', 'Max Mods HUD Mirror'),
     (20, 'label', 'mirrorStatus', 'Stopped'),
     (21, 'label', 'mirrorPark', 'Waiting for vehicle signals'),
     (22, 'label', 'mirrorPhone', 'Start sharing on your phone, then select Pair phone'),
+    (23, 'label', 'mirrorVersion', 'Car ' + VERSION + ' / phone ' + RELEASE['phoneVersion']),
     (30, 'button', 'mirrorTest', 'Test HUD (8 seconds)'),
     (31, 'button', 'mirrorPair', 'Pair phone'),
     (32, 'button', 'mirrorStart', 'Start mirror'),
     (33, 'button', 'mirrorStop', 'Stop mirror'),
+    (34, 'button', 'mirrorLayout', 'HUD size: Compact (space below for BMW)'),
+    (40, 'label', 'mirrorWhatsNew', "What's new in " + VERSION + ' (1/' + str(len(release_lines)) + ')'),
+    (41, 'label', 'mirrorReleaseLine1', release_lines[0][0]),
+    (42, 'label', 'mirrorReleaseLine2', release_lines[0][1] if len(release_lines[0]) > 1 else ''),
+    (43, 'button', 'mirrorReleasePrevious', 'Previous change'),
+    (44, 'button', 'mirrorReleaseNext', 'Next change'),
 ]
+changelog = ['# Release notes', '']
+for release in RELEASES:
+    changelog += ['## Car ' + release['version'] + ' / Android ' + release['phoneVersion'], '']
+    changelog += ['- ' + change for change in release['changes']]
+    changelog += ['']
+(ROOT / 'CHANGELOG.md').write_text('\n'.join(changelog))
 components = {}
 xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<application>', '  <container id="1" type="state" widget="LT_State_Wide">', '    <layoutGroup id="100" name="Titlebar">', '      <component id="10" type="title"><property id="2" value="1"/></component>', '    </layoutGroup>', '    <layoutGroup id="200" name="List">', '      <property id="3" value="1"/>']
 for ident, kind, name, label in rows:
@@ -92,7 +112,7 @@ proxies.update({
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.
 write(TREE / 'permissions.json', {x: [] for x in ['masterAccessTable','mediatorAccessTable','ownerAccessTable','masterRegistrationTable','mediatorRegistrationTable','ownerRegistrationTable','domainRoleTable']})
-modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','mirror_controller.js','cluster_render_client.js']
+modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js']
 write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree': TREE.name, 'internet': True,
     'modules': ['src/' + x for x in modules], 'sdk': ['oap-sdk/src/core/OnlineApp.js','oap-sdk/src/logging/logging','oap-sdk/src/someip/someipBuilders']})
 write(ROOT / 'mgu-repo.json', {'schema': 1, 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',

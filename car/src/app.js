@@ -7,15 +7,18 @@ const { spell } = require('./speller.js');
 const { ParkGuard } = require('./park_guard.js');
 const { VehicleSignals } = require('./vehicle_signals.js');
 const { MirrorController } = require('./mirror_controller.js');
+const release = require('./release_notes.js');
 const logger = logging.getSDKLogger();
 const STATE = 'ST_MaxModsHudMirror';
-const NAMES = ['mirrorStatus', 'mirrorPark', 'mirrorPhone', 'mirrorTest', 'mirrorPair', 'mirrorStart', 'mirrorStop'];
+const NAMES = ['mirrorStatus', 'mirrorPark', 'mirrorPhone', 'mirrorTest', 'mirrorPair', 'mirrorStart', 'mirrorStop', 'mirrorLayout',
+    'mirrorWhatsNew', 'mirrorReleaseLine1', 'mirrorReleaseLine2', 'mirrorReleasePrevious', 'mirrorReleaseNext'];
 
 class HudMirrorApp extends OnlineApp {
     constructor() {
         super();
         this._ui = {}; this._written = {}; this._actions = {}; this._pressAt = {};
         this._done = false; this._spelling = false; this._visible = false; this._hide = null;
+        this._releaseIndex = 0;
         this.guard = new ParkGuard();
         this.mirror = new MirrorController(this.guard);
         this.signals = new VehicleSignals(this.guard, () => { this.mirror.checkPark(); this.render(); });
@@ -45,6 +48,9 @@ class HudMirrorApp extends OnlineApp {
         this.bind('mirrorPair', () => this.pairPhone());
         this.bind('mirrorStart', () => this.mirror.start(false));
         this.bind('mirrorStop', () => this.mirror.stop());
+        this.bind('mirrorLayout', () => this.mirror.toggleLayout());
+        this.bind('mirrorReleasePrevious', () => this.releaseNote(-1));
+        this.bind('mirrorReleaseNext', () => this.releaseNote(1));
         rhmi.on('userEvent', (ev) => {
             const n = ev && ev.eventType === 'ACTION' && this._actions[Number(ev.sourceId)];
             if (n) this.press(n.name, n.fn);
@@ -100,12 +106,20 @@ class HudMirrorApp extends OnlineApp {
         this._written[name] = text;
         Promise.resolve(this._ui[name].setValue(0, 'Text', text, 'Text')).catch((e) => logger.warn('HUD Mirror row: ' + e.message));
     }
+    releaseNote(step) {
+        this._releaseIndex = (this._releaseIndex + step + release.lines.length) % release.lines.length;
+        this.render();
+    }
     render() {
         if (this._done) return;
         this.write('mirrorStatus', this.mirror.status.slice(0, 95));
         const blocked = this.guard.reason();
         this.write('mirrorPark', ((blocked && this.signals.errors[0]) || blocked || 'Stationary, Park confirmed').slice(0, 95));
         this.write('mirrorPhone', this.mirror.pairing ? 'Phone paired: ' + this.mirror.pairing.host : 'Start sharing on your phone, then select Pair phone');
+        this.write('mirrorLayout', this.mirror.layout === 'compact' ? 'HUD size: Compact (space below for BMW)' : 'HUD size: Full screen');
+        this.write('mirrorWhatsNew', "What's new in " + release.version + ' (' + (this._releaseIndex + 1) + '/' + release.lines.length + ')');
+        this.write('mirrorReleaseLine1', release.lines[this._releaseIndex][0]);
+        this.write('mirrorReleaseLine2', release.lines[this._releaseIndex][1] || '');
     }
     hide() {
         if (this._spelling) return;

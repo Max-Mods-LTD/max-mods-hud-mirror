@@ -34,5 +34,21 @@ const gear = permissions.proxies['de.bmw.infrastructure.VehicleInformation'].att
 assert.deepStrictEqual(gear, { statusGearboxDrive: 's', DataPowerTrain2: 's' });
 assert.strictEqual(repo.components[0].version, manifest.version);
 assert.strictEqual(manifest.tree, manifest.id + '@' + manifest.version);
+const release = JSON.parse(fs.readFileSync(path.join(root, 'release_notes.json'))).releases[0];
+assert.strictEqual(release.version, manifest.version);
+const ui = JSON.parse(fs.readFileSync(path.join(root, 'car', manifest.tree, 'rhmiData/uiDescriptions/ID7/uiDescription.json')));
+const rows = Object.values(ui.containers['1'].components);
+assert(rows.some((r) => r.name === 'mirrorVersion' && r.rows[0].Text.value.indexOf(release.version) >= 0));
+const appNotes = require('../car/src/release_notes.js');
+assert.strictEqual(appNotes.version, release.version);
+assert.deepStrictEqual(appNotes.changes, release.changes);
+appNotes.lines.forEach((lines, i) => {
+    assert.strictEqual(lines.join(' '), release.changes[i], 'release note missing from car app');
+    assert(lines.length <= 2 && lines.every((line) => line.length <= 60), 'release note may be cut off on the car display');
+});
+assert(rows.some((r) => r.name === 'mirrorReleaseLine1' && r.rows[0].Text.value === appNotes.lines[0][0]));
+['mirrorReleasePrevious','mirrorReleaseNext'].forEach((name) => assert(rows.some((r) => r.name === name && r.type === 'button')));
+const android = fs.readFileSync(path.join(root, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+assert(android.indexOf('android:versionName="' + release.phoneVersion + '"') >= 0);
 console.log('PASS Store package, module linking against made-up SDK stubs, Node syntax, source-only distribution and read-only vehicle declarations');
 console.log('This is not an MGU emulator or hardware test. The fake donor is never distributed.');

@@ -1,17 +1,19 @@
-MAX MODS HUD MIRROR — CAR 0.1.1 / ANDROID 0.1.0
+MAX MODS HUD MIRROR — CAR 0.2.0 / ANDROID 0.2.0
 
 This is an experimental windscreen HUD mirroring app for your iDrive 7 M4.
-It has passed host-side checks. No successful hardware run yet.
+The earlier build displayed on Max's HUD. This streaming update still
+needs a new car test; 30 fps is the target, not a measured projector rate.
 
 The Android installer is in this repository's downloads folder:
-  downloads/Max_Mods_HUD_Mirror_Android_v0.1.0.apk
+  downloads/Max_Mods_HUD_Mirror_Android_v0.2.0.apk
 
 The car folder holds the car app; android holds the phone app's source.
 In the car's Store, add this source and choose main:
   Max-Mods-LTD/max-mods-hud-mirror
 
-If 0.1.0 failed to install: Store > Settings > Check now, then retry when
-the Available version says 0.1.1. The Android APK is unchanged.
+UPDATE BOTH APPS: Store > Settings > Check now, then install when the
+Available version says 0.2.0. Install the new phone APK over the old app.
+Stop sharing and pair again after the updates.
 
 First test:
 1. Add the source in the car's Store and install Max Mods HUD Mirror.
@@ -22,9 +24,15 @@ First test:
 6. Start sharing on the phone and approve Android's screen-share prompt.
 7. Enter the phone's address/code using Pair phone in the car app.
 8. Press Start mirror. Keep the car app's page open.
+9. Rotate the phone to landscape for the wide view. Check all four edges.
+10. HUD size toggles Compact / Full screen. Compact is the default.
+    Check BMW's speed and sign remain visible; this is not yet verified.
+
+Scroll down to What's new. Use Previous change / Next change to read the
+release notes with the touchscreen or iDrive controller.
 
 Stop mirror on the car and Stop sharing on the phone when finished.
-The prototype supports display only, up to 4 frames/second, no audio or
+The prototype supports display only, targets 30 frames/second, no audio or
 phone control. It requires fresh live speed and Park readings and stops
 when those readings are unsafe, unavailable or stale.
 

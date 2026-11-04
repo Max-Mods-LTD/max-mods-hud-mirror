@@ -93,6 +93,28 @@
             }
           ]
         },
+        "23": {
+          "type": "label",
+          "name": "mirrorVersion",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Car 0.2.0 / phone 0.2.0",
+                "type": "Text"
+              }
+            }
+          ]
+        },
         "30": {
           "type": "button",
           "name": "mirrorTest",
@@ -176,6 +198,138 @@
             {
               "Text": {
                 "value": "Stop mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "34": {
+          "type": "button",
+          "name": "mirrorLayout",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "HUD size: Compact (space below for BMW)",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "40": {
+          "type": "label",
+          "name": "mirrorWhatsNew",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "What's new in 0.2.0 (1/6)",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "41": {
+          "type": "label",
+          "name": "mirrorReleaseLine1",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Continuous stream targeting 30 fps; the app shows the",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "42": {
+          "type": "label",
+          "name": "mirrorReleaseLine2",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "received frame rate.",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "43": {
+          "type": "button",
+          "name": "mirrorReleasePrevious",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Previous change",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "44": {
+          "type": "button",
+          "name": "mirrorReleaseNext",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Next change",
                 "type": "Text"
               }
             }

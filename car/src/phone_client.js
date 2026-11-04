@@ -2,9 +2,7 @@
 'use strict';
 const http = require('http');
 
-const WIDTH = 400;
-const HEIGHT = 240;
-const BYTES = WIDTH * HEIGHT * 4;
+const { StreamDecoder, WIDTH, HEIGHT, BYTES } = require('./stream_decoder.js');
 const PORT = 8476;
 
 function parsePairing(text) {
@@ -19,7 +17,7 @@ function parsePairing(text) {
 }
 
 class PhoneClient {
-    constructor() { this.requests = new Set(); this.lastFrame = '0'; this.closed = false; }
+    constructor() { this.requests = new Set(); this.decoders = new Set(); this.closed = false; }
     request(host, route, token, body, limit) {
         return new Promise((resolve, reject) => {
             if (this.closed) { reject(new Error('Phone connection closed')); return; }
@@ -53,25 +51,42 @@ class PhoneClient {
     }
     pair(text) {
         const p = parsePairing(text);
-        return this.request(p.host, '/v1/pair', null, p.pin, 1024).then((r) => {
-            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code on the phone');
+        return this.request(p.host, '/v2/pair', null, p.pin, 1024).then((r) => {
+            if (r.status === 404) throw new Error('Update the phone app to version 0.2.0');
+            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.2.0');
             let data; try { data = JSON.parse(r.body.toString('utf8')); } catch (e) { throw new Error('Invalid pairing reply'); }
-            if (!/^[a-f0-9]{32}$/.test(data.token || '') || data.width !== WIDTH || data.height !== HEIGHT) throw new Error('Unsupported phone app version');
-            this.lastFrame = '0';
+            if (!/^[a-f0-9]{32}$/.test(data.token || '') || data.protocol !== 2 || data.width !== WIDTH || data.height !== HEIGHT ||
+                data.fps !== 30 || data.format !== 'yuv420-atlas-deflate') throw new Error('Update both HUD Mirror apps to version 0.2.0');
             return { host: p.host, token: data.token };
         });
     }
-    frame(pairing) {
-        return this.request(pairing.host, '/v1/frame?after=' + this.lastFrame, pairing.token, null, BYTES).then((r) => {
-            if (r.status === 204) return null;
-            if (r.status !== 200) throw new Error('Phone stopped sharing; pair again');
-            if (r.body.length !== BYTES || r.headers['content-type'] !== 'application/x-maxmods-rgba' ||
-                r.headers['x-mirror-width'] !== String(WIDTH) || r.headers['x-mirror-height'] !== String(HEIGHT) ||
-                !/^\d{1,15}$/.test(r.headers['x-mirror-frame-id'] || '')) throw new Error('Invalid phone frame');
-            this.lastFrame = r.headers['x-mirror-frame-id'];
-            return r.body;
+    stream(pairing, events) {
+        if (this.closed) { events.error(new Error('Phone connection closed')); return; }
+        let failed = false, req;
+        const fail = (e) => {
+            if (failed || this.closed) return;
+            failed = true; decoder.close(); this.decoders.delete(decoder); this.requests.delete(req);
+            if (req) req.destroy(); events.error(e);
+        };
+        const decoder = new StreamDecoder({ frame: events.frame, state: events.state, error: fail });
+        this.decoders.add(decoder);
+        req = http.request({ host: pairing.host, port: PORT, path: '/v2/stream?after=0', method: 'GET', agent: false,
+            headers: { Authorization: 'Bearer ' + pairing.token, 'Cache-Control': 'no-store', Connection: 'close' } }, (res) => {
+            if (res.statusCode !== 200) { fail(new Error(res.statusCode === 403 ? 'Phone session ended; pair again' : 'Phone stopped sharing; start sharing again')); return; }
+            if (res.headers['content-type'] !== 'application/x-maxmods-hud-stream' || res.headers['x-mirror-protocol'] !== '2') {
+                fail(new Error('Invalid phone stream version')); return;
+            }
+            res.on('data', (chunk) => decoder.push(chunk));
+            res.on('error', fail); res.on('aborted', () => fail(new Error('Phone connection lost')));
+            res.on('end', () => fail(new Error('Phone stream ended. Start sharing again.')));
         });
+        this.requests.add(req);
+        req.setTimeout(3500, () => fail(new Error('Phone connection timed out')));
+        req.on('error', fail); req.end();
     }
-    close() { this.closed = true; this.requests.forEach((r) => r.destroy()); this.requests.clear(); }
+    close() {
+        this.closed = true; this.decoders.forEach((d) => d.close()); this.decoders.clear();
+        this.requests.forEach((r) => r.destroy()); this.requests.clear();
+    }
 }
 module.exports = { PhoneClient, parsePairing, WIDTH, HEIGHT, BYTES, PORT };

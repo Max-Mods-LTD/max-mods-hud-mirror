@@ -48,7 +48,7 @@ public final class MainActivity extends Activity {
         scroll.addView(layout);
         layout.addView(text("MAX MODS", 16, Color.rgb(102, 220, 167)));
         layout.addView(text("HUD Mirror", 34, Color.WHITE));
-        layout.addView(text("Android prototype 0.1.0", 14, Color.LTGRAY));
+        layout.addView(text("Android prototype 0.2.0 · 30 fps target", 14, Color.LTGRAY));
         layout.addView(text("1. Park the car and select P.\n2. Connect this phone to the BMW Wi-Fi hotspot.\n3. Start sharing, then enter the address/code in the car's HUD Mirror app.", 17, Color.WHITE));
         state = text("Ready", 17, Color.rgb(102, 220, 167)); layout.addView(state);
         pair = text("", 20, Color.WHITE); pair.setTextIsSelectable(true); layout.addView(pair);
@@ -60,7 +60,7 @@ public final class MainActivity extends Activity {
         stop.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             stopService(new Intent(MainActivity.this, CaptureService.class)); render();
         }});
-        layout.addView(text("Display only · no audio or phone control\nRotate the phone to landscape for a wider picture. Keep the car's HUD Mirror page open.\n\nAndroid asks permission each session. Locking the phone ends sharing. Protected apps may show a blank picture. Sessions end after 10 minutes.", 14, Color.LTGRAY));
+        layout.addView(text("Display only · no audio or phone control\nThe whole phone screen fits without cropping. Landscape gives a wider picture. Change Compact / Full screen using HUD size in the car. Keep the car app open.\n\nAndroid asks permission each session. Locking the phone ends sharing. Protected apps may show a blank picture. Sessions end after 10 minutes.", 14, Color.LTGRAY));
         setContentView(scroll);
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 71);
     }

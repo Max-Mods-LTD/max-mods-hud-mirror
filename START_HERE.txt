@@ -1,0 +1,28 @@
+MAX MODS HUD MIRROR — ANDROID PROTOTYPE 0.1.0
+
+This is an experimental windscreen HUD mirroring app for your iDrive 7 M4.
+It has passed host-side checks. It has not been tested on a phone or car.
+
+The Android installer is in this repository's downloads folder:
+  downloads/Max_Mods_HUD_Mirror_Android_v0.1.0.apk
+
+The car folder holds the car app; android holds the phone app's source.
+In the car's Store, add this source and choose main:
+  Max-Mods-LTD/max-mods-hud-mirror
+
+First test:
+1. Add the source in the car's Store and install Max Mods HUD Mirror.
+2. Keep the car stationary in P and turn the HUD on.
+3. Open HUD Mirror in iDrive and press Test HUD (8 seconds).
+4. Only if the test pattern appears on the windscreen, continue.
+5. Install the Android APK and join the BMW Wi-Fi hotspot.
+6. Start sharing on the phone and approve Android's screen-share prompt.
+7. Enter the phone's address/code using Pair phone in the car app.
+8. Press Start mirror. Keep the car app's page open.
+
+Stop mirror on the car and Stop sharing on the phone when finished.
+The prototype supports display only, up to 4 frames/second, no audio or
+phone control. It requires fresh live speed and Park readings and stops
+when those readings are unsafe, unavailable or stale.
+
+See README.md for full instructions and troubleshooting.

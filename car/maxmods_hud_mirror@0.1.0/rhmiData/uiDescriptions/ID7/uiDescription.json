@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "1.3.0",
+  "containers": {
+    "1": {
+      "type": "state",
+      "name": "ST_MaxModsHudMirror",
+      "components": {
+        "10": {
+          "type": "title",
+          "name": "mirrorTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "SID_HUD_TITLE",
+                "type": "StringId"
+              }
+            }
+          ]
+        },
+        "20": {
+          "type": "label",
+          "name": "mirrorStatus",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Stopped",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "21": {
+          "type": "label",
+          "name": "mirrorPark",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Waiting for vehicle signals",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "22": {
+          "type": "label",
+          "name": "mirrorPhone",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Start sharing on your phone, then select Pair phone",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "30": {
+          "type": "button",
+          "name": "mirrorTest",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Test HUD (8 seconds)",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "31": {
+          "type": "button",
+          "name": "mirrorPair",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Pair phone",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "32": {
+          "type": "button",
+          "name": "mirrorStart",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Start mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "33": {
+          "type": "button",
+          "name": "mirrorStop",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Stop mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "maxmods_hud_mirror",
+      "kind": "app",
+      "path": "car",
+      "build": "unit",
+      "title": "Max Mods HUD Mirror",
+      "description": "Android phone screen on the windscreen HUD. Parked test prototype.",
+      "version": "0.1.0",
+      "mguHmi": [
+        "ID7"
+      ],
+      "requires": {
+        "cluster-render": "0.3.7",
+        "mgu-deploy": "0.7.11"
+      }
+    }
+  ]
+}

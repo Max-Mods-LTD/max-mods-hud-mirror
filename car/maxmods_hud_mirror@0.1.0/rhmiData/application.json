@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.3.0",
+  "application": {
+    "uuid": "7974723b-75bc-511d-9253-cd0251ccddec",
+    "type": "OnlineApp",
+    "name": "maxmods_hud_mirror",
+    "vendor": "Max Mods",
+    "version": "0.1.0",
+    "defaultLanguage": "en_GB",
+    "stringBundleUuid": "0d6f8f26-b11a-5702-86b3-5bd0ee339e05",
+    "resourceBundleUuid": "b9f327c8-9fcd-594a-85cf-ef3cdd1af602",
+    "uiDescriptions": [
+      {
+        "applicationFilePath": "./uiDescriptions/ID7/application.xml",
+        "uiDescriptionFilePath": "./uiDescriptions/ID7/uiDescription.json",
+        "hmi": [
+          "ID7"
+        ]
+      }
+    ],
+    "variantGroups": [
+      {
+        "stringsPath": "./variantGroups/Common/texts",
+        "resourcesPath": "./variantGroups/Common/images",
+        "hmi": [
+          "ID7"
+        ],
+        "brands": [
+          "BMW"
+        ]
+      }
+    ],
+    "entryPoints": [
+      {
+        "name": "maxmods_hud_mirror",
+        "uuid": "0680e28b-d4c5-5ee2-8135-acecf8969546",
+        "textId": "SID_HUD_TITLE",
+        "icon": "hud_mirror.png",
+        "insertionStateId": 20974,
+        "insertionFocusId": 2,
+        "insertionMode": "INSERT_BELOW",
+        "insertionOrder": 0,
+        "insertionPriority": 0,
+        "previewType": "NONE",
+        "bookmarkable": true,
+        "private": false,
+        "appearance": "DEFAULT",
+        "isGroupHeader": false,
+        "insertionGroup": 0
+      }
+    ]
+  }
+}

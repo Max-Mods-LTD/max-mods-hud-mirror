@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "id": "maxmods_hud_mirror",
+  "version": "0.1.0",
+  "tree": "maxmods_hud_mirror@0.1.0",
+  "internet": true,
+  "modules": [
+    "src/app.js",
+    "src/speller.js",
+    "src/park_guard.js",
+    "src/vehicle_signals.js",
+    "src/phone_client.js",
+    "src/mirror_controller.js",
+    "src/cluster_render_client.js"
+  ],
+  "sdk": [
+    "oap-sdk/src/core/OnlineApp.js",
+    "oap-sdk/src/logging/logging",
+    "oap-sdk/src/someip/someipBuilders"
+  ]
+}

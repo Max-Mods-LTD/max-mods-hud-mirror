@@ -1,7 +1,7 @@
-MAX MODS HUD MIRROR — ANDROID PROTOTYPE 0.1.0
+MAX MODS HUD MIRROR — CAR 0.1.1 / ANDROID 0.1.0
 
 This is an experimental windscreen HUD mirroring app for your iDrive 7 M4.
-It has passed host-side checks. It has not been tested on a phone or car.
+It has passed host-side checks. No successful hardware run yet.
 
 The Android installer is in this repository's downloads folder:
   downloads/Max_Mods_HUD_Mirror_Android_v0.1.0.apk
@@ -9,6 +9,9 @@ The Android installer is in this repository's downloads folder:
 The car folder holds the car app; android holds the phone app's source.
 In the car's Store, add this source and choose main:
   Max-Mods-LTD/max-mods-hud-mirror
+
+If 0.1.0 failed to install: Store > Settings > Check now, then retry when
+the Available version says 0.1.1. The Android APK is unchanged.
 
 First test:
 1. Add the source in the car's Store and install Max Mods HUD Mirror.

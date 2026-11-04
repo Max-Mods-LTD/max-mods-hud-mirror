@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CAR = ROOT / 'car'
 APP = 'maxmods_hud_mirror'
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 TREE = CAR / (APP + '@' + VERSION)
 NS = uuid.UUID('61e3f454-5dc3-4c41-8f08-e5d94750f4cd')
 
@@ -86,7 +86,8 @@ proxies.update({
     'de.bmw.infotainment.vehicle.Vehicle': '*', 'de.bmw.infrastructure.EnvironmentalInformation': '*',
     'de.bmw.infotainment.certification.Certification': '*',
     'de.bmw.infotainment.vehicle.Vehicle2': {'instances': '1', 'attributes': {'statusCarSpeed2': 'rs'}},
-    'de.bmw.infrastructure.VehicleInformation': {'instances': '1', 'attributes': {'statusGearboxDrive': 'rs','DataPowerTrain2': 'rs'}}
+    # Gear fields have notifications, but no getter in BMW's catalog.
+    'de.bmw.infrastructure.VehicleInformation': {'instances': '1', 'attributes': {'statusGearboxDrive': 's','DataPowerTrain2': 's'}}
 })
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.

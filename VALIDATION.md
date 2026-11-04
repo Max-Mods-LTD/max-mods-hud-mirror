@@ -1,9 +1,19 @@
-# Validation — prototype 0.1.0
+# Validation — car prototype 0.1.1 / Android 0.1.0
 
 Checked on 4 November 2026.
 
 ## Passed
 
+- Car 0.1.1 removes unsupported getters from the two gear declarations.
+  All explicitly requested interfaces, fields, methods and events pass a
+  read-only check against the publicly attached 2020 reference catalog in
+  [upstream idrive7-apps issue #15](https://github.com/cauliflowermossgrape/idrive7-apps/issues/15).
+  This is not the user's firmware catalog;
+  no BMW catalog is included in this repository.
+- Vehicle signal regression checks cover notification-only gear fields,
+  both selector variants, a missing primary selector field, speed polling,
+  rejection of stale Park readings, unavailable-interface diagnostics and
+  shutdown while proxy setup is pending. A synthetic SDK is used.
 - Android application compiled against Android platform API 35, converted
   to DEX for API 26+, packaged, zip-aligned and signed. Android's
   `apksigner verify --verbose` confirms APK v2 and v3 signatures.
@@ -35,15 +45,18 @@ Checked on 4 November 2026.
 - On-device Stop behaviour, Park/movement interlock and normal HUD
   restoration after stop/removal.
 
-No MGU firmware emulator, Android device/emulator or physical car was
-available for this build. Do not describe it as hardware-tested or a
-finished customer product. First run the eight-second HUD test pattern
-with the car stationary in Park.
+The user's car rejected 0.1.0 during SOME/IP interface generation, before
+the app could start. The photograph does not show the complete underlying
+error. The unsupported gear getters above are a confirmed package defect;
+0.1.1 still needs an installation retry and first successful hardware run.
+No MGU firmware emulator or Android device/emulator was available here.
+First run the eight-second HUD test pattern with the car stationary in Park.
 
 ## Commands used
 
 ```sh
 node tests/test_car.js
+node tests/test_vehicle_signals.js
 node tests/test_package.js
 java -jar "$ECJ_JAR" -8 -proc:none -warn:none -d build/phone-tests \
   android/app/src/main/java/uk/maxmods/hudmirror/FrameStore.java \

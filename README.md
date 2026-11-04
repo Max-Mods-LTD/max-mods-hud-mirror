@@ -1,9 +1,9 @@
-# Max Mods HUD Mirror — prototype 0.1.0
+# Max Mods HUD Mirror — car prototype 0.1.1
 
 Android screen mirroring to the **windscreen head-up display** on a BMW
 with iDrive 7 and Robert Nisipeanu's `cluster-render` installed.
 
-**Experimental build. Not tested on a physical phone or car.** The APK is
+**Experimental build. No successful hardware run yet.** The APK is
 compiled and signed; protocol and stop conditions are tested on the host.
 The first on-car check is an eight-second HUD test pattern. The renderer's
 800 × 480 HUD canvas is its current default, whose exact size remains
@@ -56,6 +56,10 @@ no BMW SDK is included here.
 
 ## If the first test fails
 
+- Install fails at `generateSomeipInterfaces`: version 0.1.0 incorrectly
+  requested getters on two notification-only gear fields. In the Store,
+  open **Settings > Check now**, confirm **Available 0.1.1**, and retry.
+  The Android companion stays at 0.1.0; it does not need reinstalling.
 - `Waiting for live speed and Park signals`: the read-only vehicle
   interfaces have not supplied valid readings. It stays blocked. Send
   the exact message and the car's model/software version.
@@ -87,6 +91,8 @@ Do not publish `build/`, a signing key or a firmware-derived SDK bundle.
 python3 tools/generate_car_ui.py       # needs Pillow; generated UI is already included
 node tools/pack_car.js                 # SDK-free source package
 node tests/test_car.js
+node tests/test_vehicle_signals.js
+node tests/test_package.js
 ```
 
 `tools/build_android.py` builds with Android SDK platform 35, build tools

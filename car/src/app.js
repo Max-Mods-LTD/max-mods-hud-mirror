@@ -103,7 +103,8 @@ class HudMirrorApp extends OnlineApp {
     render() {
         if (this._done) return;
         this.write('mirrorStatus', this.mirror.status.slice(0, 95));
-        this.write('mirrorPark', this.guard.reason() || 'Stationary, Park confirmed');
+        const blocked = this.guard.reason();
+        this.write('mirrorPark', ((blocked && this.signals.errors[0]) || blocked || 'Stationary, Park confirmed').slice(0, 95));
         this.write('mirrorPhone', this.mirror.pairing ? 'Phone paired: ' + this.mirror.pairing.host : 'Start sharing on your phone, then select Pair phone');
     }
     hide() {

@@ -79,8 +79,8 @@
     "de.bmw.infrastructure.VehicleInformation": {
       "instances": "1",
       "attributes": {
-        "statusGearboxDrive": "rs",
-        "DataPowerTrain2": "rs"
+        "statusGearboxDrive": "s",
+        "DataPowerTrain2": "s"
       }
     }
   },

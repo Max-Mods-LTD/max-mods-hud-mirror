@@ -8,7 +8,7 @@
       "build": "unit",
       "title": "Max Mods HUD Mirror",
       "description": "Android phone screen on the windscreen HUD. Parked test prototype.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "mguHmi": [
         "ID7"
       ],

@@ -114,7 +114,7 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         assert(other.w <= 1000 && other.h <= 400); assert(Math.abs(other.w / other.h - WIDTH / HEIGHT) < 0.01);
         c.close();
     });
-    await test('live still-screen records preserve output; hidden content and dead connections do not', async () => {
+    await test('live still-screen records preserve output; hidden content and dead links clear the image', async () => {
         let now = 1000, events; const g = guard(() => now), r = new Renderer();
         const c = new MirrorController(g, { clock: () => now, makeRenderer: () => r,
             makePhone: () => ({ close() {}, stream(p, e) { events = e; } }) });
@@ -131,7 +131,48 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         events.state('active'); assert.strictEqual(r.frames.length, 2, 'resume must wait for a fresh picture');
         events.frame(Buffer.alloc(BYTES), 3); assert.strictEqual(r.frames.length, 3);
         now += 3600; refreshPark(); await new Promise((resolve) => setTimeout(resolve, 230));
-        assert(!c.running); assert.strictEqual(c.status, 'Phone connection lost'); assert(r.closed); c.close();
+        assert(c.running); assert(/reconnecting 1\/3/.test(c.status));
+        assert.strictEqual(r.settings[r.settings.length - 1].visible, false); assert.strictEqual(c.latestPixels, null);
+        c.close(); assert(r.closed);
+    });
+    await test('a brief network failure recovers using a new frame and ignores callbacks from the old connection', async () => {
+        const streams = [], r = new Renderer();
+        const c = new MirrorController(guard(() => 1000), { clock: () => 1000, makeRenderer: () => r,
+            makePhone: () => ({ close() {}, stream(p, e) { streams.push(e); } }) });
+        c.pairing = { host: '10.0.0.1', token: '0'.repeat(32) }; c.start(false);
+        streams[0].state('active'); streams[0].frame(Buffer.alloc(BYTES), 1);
+        const reset = new Error('temporary reset'); reset.retryable = true; streams[0].error(reset);
+        assert(c.running); assert.strictEqual(c.latestPixels, null);
+        await new Promise((resolve) => setTimeout(resolve, 300)); assert.strictEqual(streams.length, 2);
+        streams[0].state('active'); streams[0].frame(Buffer.alloc(BYTES), 2);
+        assert.strictEqual(r.frames.length, 1, 'old network callbacks replayed a stale picture');
+        streams[1].state('active'); assert.strictEqual(r.frames.length, 1);
+        streams[1].frame(Buffer.alloc(BYTES), 3); assert.strictEqual(r.frames.length, 2);
+        assert.strictEqual(r.settings[r.settings.length - 1].visible, true); c.close();
+    });
+    await test('Stop, leaving Park and an explicit capture stop cancel recovery', async () => {
+        for (const action of ['stop','park','capture']) {
+            const streams = [], r = new Renderer(), g = guard(() => 1000);
+            const c = new MirrorController(g, { clock: () => 1000, makeRenderer: () => r,
+                makePhone: () => ({ close() {}, stream(p, e) { streams.push(e); } }) });
+            c.pairing = { host: '10.0.0.1', token: '0'.repeat(32) }; c.start(false);
+            const e = new Error('Phone capture stopped'); e.retryable = action !== 'capture'; streams[0].error(e);
+            if (action === 'stop') c.stop();
+            if (action === 'park') { g.updateStage({ statusActualStageDrive: 'D' }, 'statusActualStageDrive'); c.checkPark(); }
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            assert(!c.running); assert.strictEqual(streams.length, 1); assert(r.closed); c.close();
+        }
+    });
+    await test('repeated network failures stop after three retries', async () => {
+        const streams = [], r = new Renderer();
+        const c = new MirrorController(guard(() => 1000), { clock: () => 1000, makeRenderer: () => r,
+            makePhone: () => ({ close() {}, stream(p, e) { streams.push(e); } }) });
+        c.pairing = { host: '10.0.0.1', token: '0'.repeat(32) }; c.start(false);
+        for (let i = 0; i < 4; i++) {
+            const e = new Error('Video link unavailable'); e.retryable = true; streams[i].error(e);
+            if (i < 3) await new Promise((resolve) => setTimeout(resolve, [300,800,1550][i]));
+        }
+        assert(!c.running); assert.strictEqual(streams.length, 4); assert(r.closed); c.close();
     });
     console.log(count + ' car tests passed');
 })().catch((e) => { console.error(e); process.exitCode = 1; });

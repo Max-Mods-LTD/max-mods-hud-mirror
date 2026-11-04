@@ -7,7 +7,8 @@ it does not encrypt screenshots. No screenshot or token is persisted.
 
 `POST /v2/pair` accepts the displayed eight-digit code and returns the
 session token, protocol 2, width 768, height 432, target fps 30 and format
-`yuv420-atlas-deflate`. Car and phone 0.2.0 are a matched update.
+`yuv420-atlas-deflate`. Car and phone 0.3.0 use the same wire format.
+The negotiated fps is the maximum target, not a current measurement.
 
 `GET /v2/stream?after=<last-frame-id>` uses `Authorization: Bearer <token>`.
 The response is one continuous `application/x-maxmods-hud-stream` body,
@@ -23,7 +24,7 @@ with `X-Mirror-Protocol: 2`. Each record has a 13-byte header:
 | Kind | Meaning |
 | --- | --- |
 | 1 | New image: one zlib-compressed native YUV 4:2:0 atlas |
-| 2 | Capture active, image unchanged |
+| 2 | Capture active; no new picture in this record |
 | 3 | Capture active, waiting for its first/new picture |
 | 4 | Shared app hidden; erase output until a new picture arrives |
 | 5 | Capture stopped, stalled or session expired; close stream |
@@ -41,12 +42,33 @@ deadline. HTTP requests and repeated pixels do not renew it. MediaProjection
 stop/visibility callbacks end or hide output. A live unchanged screen
 keeps its original capture time and sequence number.
 
-The server sends a new picture as soon as available, or a state heartbeat
+The server sends the newest available picture when its pacing permits, or a state heartbeat
 every 250 ms. Socket writes have a three-second deadline. The car uses a
 3.5-second connection deadline and its existing fresh zero-speed/Park
 guard. Active capture records may refresh an unchanged frame in the native
 video renderer, whose stall deadline is separate. Paused/stopped/dead
 connections never refresh a cached picture.
+
+Version 0.3.0 requests a 16 KiB socket send buffer so a slowed radio does
+not hide a large playback queue below the Java layer. Auto picture traffic
+is paced at 8 MiB/s normally or 2 MiB/s when an available Bluetooth output
+shares 2.4 GHz/an unknown band; Bluetooth priority forces the latter.
+Quality priority removes that artificial byte cap and preserves full
+capture detail. Actual writes still have the same bounded deadline.
+
+Write duration and picture size drive capture scaling (100/75/50/38/25
+percent) before fps reduction (30 down to 10). The planes are converted
+at the smaller capture size before expansion into the unchanged canvas,
+reducing CPU work and compressed traffic without cropping phone edges.
+Sparse/quiet screens may refine to full detail instead of being treated
+as a continuous 30-fps load. These are traffic policies, not an RF fix or
+a guarantee of a particular projector rate.
+
+The car may retry a transport error three times with 250/750/1500 ms
+backoff, discarding cached pictures and all callbacks from an old
+connection. Only a new live frame may show the layer again. Explicit
+capture/protocol failures do not retry. Stop, vehicle permission loss,
+renderer loss and the original session deadline cancel recovery.
 
 The native video layer targets 30 fps and uses the renderer's existing
 motion packing when needed, refining to the exact atlas when the shared

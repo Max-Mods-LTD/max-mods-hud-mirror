@@ -18,8 +18,10 @@ public final class CaptureService extends Service {
     public static volatile boolean active;
     public static volatile String status = "Ready";
     public static volatile String pairingText = "";
+    public static volatile String linkStatus = "";
     private final Handler main = new Handler(Looper.getMainLooper());
     private final FrameStore frames = new FrameStore();
+    private final TransportPolicy transport = new TransportPolicy();
     private HandlerThread worker;
     private volatile MediaProjection projection;
     private volatile VirtualDisplay display;
@@ -34,6 +36,7 @@ public final class CaptureService extends Service {
     private volatile boolean captureVisible = true;
     private boolean captureScheduled;
     private int density;
+    private int sourceWidth, sourceHeight, appliedPercent;
     private final Runnable captureTask = new Runnable() { public void run() {
         captureScheduled = false;
         ImageReader source = reader;
@@ -51,14 +54,20 @@ public final class CaptureService extends Service {
             main.post(new Runnable() { public void run() { finish("Sharing stopped: capture display ended"); } }); return;
         }
         frames.heartbeat();
+        if (lastFrameNs != 0 && System.nanoTime() - lastFrameNs > 2000000000L) transport.idle();
+        if (appliedPercent != transport.capturePercent()) resizeCapture(sourceWidth, sourceHeight);
         captureHandler.postDelayed(this, 250);
     }};
     private final Runnable monitor = new Runnable() { public void run() {
         if (!active) return;
+        RadioStatus radio = RadioStatus.read(CaptureService.this);
+        transport.setMode(getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO));
+        transport.radio(radio.bluetooth, radio.frequency);
+        linkStatus = radio.description() + "\n" + transport.description();
         Inet4Address now = MainActivity.wifiAddress(CaptureService.this);
         if (now == null || !now.getHostAddress().equals(bindAddress)) { finish("Sharing stopped: Wi-Fi connection changed"); return; }
         if (SystemClock.elapsedRealtime() - startedMs >= 10 * 60 * 1000L) { finish("Session ended. Start sharing again."); return; }
-        if (server != null) status = !captureVisible ? "Shared app hidden. Return to it to resume." : server.isPaired() ? "Streaming to the paired car (30 fps target)" : "Sharing ready. Pair in the car.";
+        if (server != null) status = !captureVisible ? "Shared app hidden. Return to it to resume." : server.isPaired() ? "Video sharing active. Sound uses BMW Bluetooth media." : "Sharing ready. Pair in the car.";
         main.postDelayed(this, 1000);
     }};
     public IBinder onBind(Intent intent) { return null; }
@@ -78,6 +87,9 @@ public final class CaptureService extends Service {
             if (Build.VERSION.SDK_INT >= 29) startForeground(100, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
             else startForeground(100, notification);
             bindAddress = intent.getStringExtra("address");
+            RadioStatus radio = RadioStatus.read(this);
+            transport.setMode(getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO));
+            transport.radio(radio.bluetooth, radio.frequency);
             Inet4Address wifi = MainActivity.wifiAddress(this);
             if (wifi == null || !wifi.getHostAddress().equals(bindAddress)) throw new IllegalStateException("Connect to BMW Wi-Fi and try again");
             Intent consent = intent.getParcelableExtra("projection");
@@ -97,9 +109,11 @@ public final class CaptureService extends Service {
                     if (!cleaning && captureHandler != null) captureHandler.post(new Runnable() { public void run() { resizeCapture(width, height); } });
                 }
             }, main);
-            int[] size = phoneCaptureSize();
+            int[] region = phoneRegionSize(); sourceWidth = region[0]; sourceHeight = region[1];
+            int[] size = captureSize(sourceWidth, sourceHeight);
             reader = newReader(size[0], size[1]);
             active = true;
+            getSharedPreferences("hud_mirror", MODE_PRIVATE).edit().putBoolean("sharingWasActive", true).apply();
             display = projection.createVirtualDisplay("MaxModsHudMirror", size[0], size[1], density,
                     DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader.getSurface(), null, captureHandler);
             if (Build.VERSION.SDK_INT < 34) {
@@ -108,31 +122,35 @@ public final class CaptureService extends Service {
                     public void onDisplayRemoved(int id) { }
                     public void onDisplayChanged(int id) {
                         if (id == android.view.Display.DEFAULT_DISPLAY) {
-                            int[] next = phoneCaptureSize(); resizeCapture(next[0], next[1]);
+                            int[] next = phoneRegionSize(); resizeCapture(next[0], next[1]);
                         }
                     }
                 };
                 ((DisplayManager) getSystemService(DISPLAY_SERVICE)).registerDisplayListener(rotationListener, captureHandler);
             }
             frames.heartbeat(); captureHandler.post(captureHeartbeat);
-            server = new PairingServer(wifi, PairingServer.PORT, frames); server.start();
+            server = new PairingServer(wifi, PairingServer.PORT, frames, transport); server.start();
             pairingText = bindAddress + "/" + server.getPin();
             status = "Sharing ready. Pair in the car."; startedMs = SystemClock.elapsedRealtime();
             main.post(monitor);
         } catch (Exception e) { finish("Could not start sharing: " + e.getMessage()); }
         return START_NOT_STICKY;
     }
-    private int[] phoneCaptureSize() {
+    private int[] phoneRegionSize() {
         DisplayMetrics metrics = new DisplayMetrics();
         ((WindowManager) getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(metrics);
-        return FrameEncoder.fit(metrics.widthPixels, metrics.heightPixels);
+        return new int[] {metrics.widthPixels, metrics.heightPixels};
+    }
+    private int[] captureSize(int width, int height) {
+        appliedPercent = transport.capturePercent();
+        return FrameEncoder.fit(width, height, FrameStore.WIDTH * appliedPercent / 100, FrameStore.HEIGHT * appliedPercent / 100);
     }
     private ImageReader newReader(int width, int height) {
         ImageReader next = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3);
         next.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() { public void onImageAvailable(ImageReader source) {
             if (source != reader || captureScheduled || !active || cleaning) return;
             captureScheduled = true;
-            long remaining = 1000000000L / FrameStore.FPS - (System.nanoTime() - lastFrameNs);
+            long remaining = 1000000000L / transport.targetFps() - (System.nanoTime() - lastFrameNs);
             // Consume the latest queued image at the deadline. Dropping an early
             // image here can lose the final change on an otherwise still screen.
             captureHandler.postDelayed(captureTask, Math.max(0, (remaining + 999999L) / 1000000L));
@@ -141,7 +159,8 @@ public final class CaptureService extends Service {
     }
     private void resizeCapture(int width, int height) {
         if (!active || cleaning || display == null || reader == null) return;
-        int[] size = FrameEncoder.fit(width, height);
+        sourceWidth = width; sourceHeight = height;
+        int[] size = captureSize(width, height);
         if (reader.getWidth() == size[0] && reader.getHeight() == size[1]) return;
         try {
             captureHandler.removeCallbacks(captureTask); captureScheduled = false;
@@ -171,6 +190,7 @@ public final class CaptureService extends Service {
     private synchronized void cleanup() {
         if (cleaning) return;
         cleaning = true; active = false; pairingText = ""; main.removeCallbacks(monitor);
+        getSharedPreferences("hud_mirror", MODE_PRIVATE).edit().putBoolean("sharingWasActive", false).apply();
         if (captureHandler != null) captureHandler.removeCallbacksAndMessages(null);
         if (rotationListener != null) { ((DisplayManager) getSystemService(DISPLAY_SERVICE)).unregisterDisplayListener(rotationListener); rotationListener = null; }
         if (server != null) { server.close(); server = null; }

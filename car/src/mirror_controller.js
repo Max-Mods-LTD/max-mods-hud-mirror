@@ -42,6 +42,7 @@ class MirrorController extends EventEmitter {
         this.streamAt = null; this.lastContactAt = null; this.latestPixels = null;
         this.lastRenderAt = null; this.frameTimes = []; this.captureState = 'waiting';
         this.pictureWaitAt = null; this.lastStatusAt = null; this.latestFrameId = 0;
+        this.connectionGeneration = 0; this.retryCount = 0; this.retryTimer = null; this.healthySince = null;
     }
     note(text) { this.status = text; this.emit('change'); }
     videoStatus(text) { this.note(this.targetState && this.targetState !== 'shown' ? 'HUD: ' + this.detail + '; ' + text : text); }
@@ -102,7 +103,9 @@ class MirrorController extends EventEmitter {
         this.watchdog = setInterval(() => {
             if (!this.guard.allowed()) this.stop(this.guard.reason());
             else if (this.clock() - this.sessionAt > (test ? 10000 : 10 * 60 * 1000)) this.stop('Session ended. Start a new session.');
-            else if (!test && this.streamAt !== null && this.clock() - (this.lastContactAt === null ? this.streamAt : this.lastContactAt) > 3500) this.stop('Phone connection lost');
+            else if (!test && this.streamAt !== null && this.clock() - (this.lastContactAt === null ? this.streamAt : this.lastContactAt) > 3500) {
+                const e = new Error('Phone connection lost'); e.retryable = true; this.recoverPhone(epoch, e);
+            }
             else if (!test && this.pictureWaitAt !== null && this.clock() - this.pictureWaitAt > 5000) this.stop('No phone picture. Start sharing on the phone.');
             else if (this.layer === null && this.clock() - this.sessionAt > 5000) this.stop('HUD renderer did not respond');
         }, 200);
@@ -110,8 +113,9 @@ class MirrorController extends EventEmitter {
     }
     beginStream(epoch) {
         this.streamAt = this.pictureWaitAt = this.clock();
+        const connection = ++this.connectionGeneration;
         const current = () => {
-            if (!this.running || epoch !== this.generation) return false;
+            if (!this.running || epoch !== this.generation || connection !== this.connectionGeneration) return false;
             if (!this.guard.allowed()) { this.stop(this.guard.reason()); return false; }
             return true;
         };
@@ -120,6 +124,7 @@ class MirrorController extends EventEmitter {
                 if (!current()) return;
                 const now = this.clock(), previous = this.captureState;
                 this.lastContactAt = now; this.captureState = state;
+                if (this.healthySince !== null && now - this.healthySince >= 5000) this.retryCount = 0;
                 if (state !== 'active') {
                     this.renderer.set(this.layer, { visible: false }); this.latestPixels = null;
                     this.pictureWaitAt = state === 'hidden' ? null : this.pictureWaitAt === null ? now : this.pictureWaitAt;
@@ -132,7 +137,7 @@ class MirrorController extends EventEmitter {
                     if (this.latestPixels && now - this.lastRenderAt >= 750) {
                         this.renderer.frame(this.layer, this.latestPixels, this.latestFrameId); this.lastRenderAt = now;
                     }
-                    if (this.lastFrameAt !== null && now - this.lastFrameAt > 1000) this.videoStatus('Mirroring phone (screen unchanged)');
+                    if (this.lastFrameAt !== null && now - this.lastFrameAt > 1000) this.videoStatus('Capture active; waiting for next picture');
                 }
             },
             frame: (pixels, id) => {
@@ -140,6 +145,7 @@ class MirrorController extends EventEmitter {
                 if (this.captureState !== 'active') return;
                 if (pixels.length !== BYTES) { this.stop('Invalid phone video frame'); return; }
                 const now = this.clock();
+                if (this.healthySince === null) this.healthySince = now;
                 this.latestPixels = pixels; this.latestFrameId = id;
                 this.lastFrameAt = this.lastRenderAt = now; this.pictureWaitAt = null;
                 this.renderer.frame(this.layer, pixels, id); this.renderer.set(this.layer, { visible: true });
@@ -151,12 +157,31 @@ class MirrorController extends EventEmitter {
                     this.videoStatus('Receiving ' + fps + ' fps'); this.lastStatusAt = now;
                 }
             },
-            error: (e) => { if (epoch === this.generation) this.stop(e.message); }
+            error: (e) => { if (epoch === this.generation && connection === this.connectionGeneration) this.recoverPhone(epoch, e); }
         });
+    }
+    recoverPhone(epoch, error) {
+        if (!this.running || epoch !== this.generation) return;
+        if (!this.guard.allowed()) { this.stop(this.guard.reason()); return; }
+        if (!error.retryable || this.retryCount >= 3) { this.stop(error.message); return; }
+        this.connectionGeneration++;
+        this.phone.close(); this.renderer.set(this.layer, { visible: false });
+        this.latestPixels = null; this.lastFrameAt = null; this.lastContactAt = null;
+        this.streamAt = null; this.pictureWaitAt = null; this.lastRenderAt = null;
+        this.frameTimes = []; this.lastStatusAt = null; this.captureState = 'waiting'; this.healthySince = null;
+        const attempt = ++this.retryCount;
+        this.note('Video link lost - reconnecting ' + attempt + '/3');
+        this.retryTimer = setTimeout(() => {
+            this.retryTimer = null;
+            if (!this.running || epoch !== this.generation) return;
+            if (!this.guard.allowed()) { this.stop(this.guard.reason()); return; }
+            this.phone = this.makePhone(); this.beginStream(epoch);
+        }, [250,750,1500][attempt - 1]);
     }
     checkPark() { if (this.running && !this.guard.allowed()) this.stop(this.guard.reason()); }
     stop(reason) {
         this.generation++; this.running = false; this.pairingBusy = false;
+        this.connectionGeneration++; clearTimeout(this.retryTimer); this.retryTimer = null; this.retryCount = 0; this.healthySince = null;
         clearTimeout(this.timer); clearInterval(this.watchdog); this.timer = this.watchdog = null;
         if (this.renderer) {
             if (this.layer !== null) this.renderer.set(this.layer, { visible: false });

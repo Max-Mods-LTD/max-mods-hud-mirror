@@ -1,12 +1,26 @@
-# Validation — car and Android prototype 0.2.0
+# Validation — car and Android prototype 0.3.0
 
 Checked on 4 November 2026.
 
 ## Passed
 
+- Bluetooth compatibility policy is tested with synthetic 2.4 GHz, 5 GHz
+  and unavailable-band inputs, audio-output availability, manual modes,
+  traffic pacing, slow writes, recovery and quiet-screen refinement.
+  These are policy tests, not an RF or Bluetooth playback test.
+- Reducing an intentionally noisy capture to the lowest detail setting
+  reduced an actual compressed test frame from 459,597 to 56,206 bytes.
+  The smaller result fits the 2 MiB/s Bluetooth-priority budget at 30 fps.
+  This reduces source detail; it does not retain the same picture quality.
+  The complete phone image and its canvas/aspect remain intact.
+- Recovery checks cover a new connection showing only a new live picture,
+  ignoring old-connection callbacks, and cancelling on Stop, leaving Park,
+  an explicit capture stop or exhaustion of three retries.
+- Real Java/HTTP/Node integration distinguishes a retryable replaced
+  connection from a terminal capture stop. Its latest transport run
+  measured 29.0 received fps with the server's new pacing.
 - The real Java server streamed a synthetic 30-fps producer through HTTP
-  to the real Node decoder. Host runs measured 26.5–30.5 received fps;
-  after reducing decoder chunk overhead the latest run measured 30.5.
+  to the real Node decoder. Earlier host runs measured 26.5–30.5 received fps.
   This is not a benchmark of Android capture or the BMW projector.
 - A static picture stayed connected beyond the former 1.5-second cutoff,
   using capture-worker liveness records without repeated picture transfers.
@@ -37,7 +51,7 @@ Checked on 4 November 2026.
 - Android application compiled against Android platform API 35, converted
   to DEX for API 26+, packaged, zip-aligned and signed. Android's
   `apksigner verify --verbose` confirms APK v2 and v3 signatures.
-- Twelve car-side tests cover unknown/invalid vehicle readings, speed,
+- Fifteen car-side tests cover unknown/invalid vehicle readings, speed,
   leaving Park, stale telemetry, private-address pairing, blocked starts,
   HUD target geometry, release on motion, late frames after Stop,
   renderer disconnect, wrong iDrive generation, incompatible phone versions,
@@ -56,9 +70,11 @@ Checked on 4 November 2026.
 
 ## Needs hardware
 
-- Installing Android 0.2.0 over 0.1.0, consent, capture scheduling,
-  projection resize/visibility callbacks and rotation on Max's phone.
-- Installing car 0.2.0, native video-layer acceptance, sustained incoming
+- Installing Android 0.3.0 over the existing APK, reading radio state,
+  automatic/manual video profiles and capture resizing on Max's phone.
+- Actual BMW Bluetooth media playback while mirroring, especially during
+  pairing/reconnection, changes of Wi-Fi band and sustained moving video.
+- Installing car 0.3.0, native video-layer acceptance, sustained incoming
   and physically projected fps on the real hotspot/head unit.
 - Physical sharpness, full-screen edges, compact/full-screen placement,
   brightness, latency and preservation of BMW speed and traffic signs.
@@ -70,10 +86,15 @@ After 0.1.1, Max confirmed a working HUD test and brief phone mirroring.
 He reported poor image quality, approximately 1 fps, cropped phone content
 and intermittent `Phone frames stopped`. His photograph confirms that the
 app still had live stationary/Park permission when that error appeared.
-Version 0.2.0 addresses those software paths but has not yet been run on
-his phone/car. No MGU firmware emulator or Android device/emulator was
-available here. Retest stationary in Park, and photograph Compact mode
-with the factory speed/limit display visible if it remains present.
+Max subsequently confirmed 0.2.0 works. He then reported severe lag and
+eventual stopping after connecting BMW Bluetooth; no exact stop reason
+or crash log was provided. That does not establish an app crash or prove
+RF interference. Version 0.3.0 addresses buffering, transport recovery
+and load adaptation while keeping BMW Bluetooth for audio. It still needs
+that combination checked on his phone/car. No MGU firmware emulator or
+Android device/emulator was available here. Retest stationary in Park,
+verify Bluetooth sound first, then start mirroring and record the band,
+received fps and exact last status if it stops.
 
 ## Commands used
 
@@ -85,6 +106,7 @@ node tests/test_stream_decoder.js
 java -jar "$ECJ_JAR" -8 -proc:none -warn:none -d build/phone-tests \
   android/app/src/main/java/uk/maxmods/hudmirror/FrameStore.java \
   android/app/src/main/java/uk/maxmods/hudmirror/FrameEncoder.java \
+  android/app/src/main/java/uk/maxmods/hudmirror/TransportPolicy.java \
   android/app/src/main/java/uk/maxmods/hudmirror/PairingServer.java \
   tests/PhoneServerHarness.java
 java -cp build/phone-tests PhoneServerHarness store-test

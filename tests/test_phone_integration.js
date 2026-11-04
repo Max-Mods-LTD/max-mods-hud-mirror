@@ -78,7 +78,14 @@ async function run(pin) {
     for (let i = 0; i < 3; i++) await p.request('127.0.0.1', '/v2/pair', null, 'BADCODE!', 100);
     const limited = await p.request('127.0.0.1', '/v2/pair', null, pin, 100);
     assert.strictEqual(limited.status, 429);
-    await command('stall'); await until(() => errors.length > 0, 4000);
-    assert(/capture stopped/.test(errors[0].message), errors[0].message);
-    console.log('PASS hidden-app resume, token/route checks, pairing limits and a stalled capture worker closing the stream');
+    const replacement = new PhoneClient(), replacementErrors = []; let replacementFrames = 0;
+    try {
+        replacement.stream(token, { frame: () => { replacementFrames++; }, state: () => {}, error: (e) => replacementErrors.push(e) });
+        await until(() => replacementFrames > 0 && errors.length > 0);
+        assert.strictEqual(errors[0].retryable, true, 'a broken/replaced connection should permit a bounded retry');
+        await command('stall'); await until(() => replacementErrors.length > 0, 4000);
+        assert(/capture stopped/.test(replacementErrors[0].message), replacementErrors[0].message);
+        assert(!replacementErrors[0].retryable, 'an explicit capture stop must not reconnect');
+    } finally { replacement.close(); }
+    console.log('PASS hidden-app resume, token/route checks, pairing limits, retryable connection replacement and terminal capture stop');
 }

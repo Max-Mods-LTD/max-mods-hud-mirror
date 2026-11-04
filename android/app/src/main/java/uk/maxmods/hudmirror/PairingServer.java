@@ -14,6 +14,7 @@ import java.util.concurrent.*;
 public final class PairingServer implements Closeable {
     public static final int PORT = 8476;
     private final FrameStore frames;
+    private final TransportPolicy transport;
     private final String pin;
     private final String token;
     private final long started = System.nanoTime();
@@ -28,8 +29,12 @@ public final class PairingServer implements Closeable {
     private Socket streamSocket;
 
     public PairingServer(InetAddress bind, int port, FrameStore store) throws IOException {
+        this(bind, port, store, new TransportPolicy());
+    }
+    public PairingServer(InetAddress bind, int port, FrameStore store, TransportPolicy policy) throws IOException {
         if (!(bind.isSiteLocalAddress() || bind.isLoopbackAddress())) throw new IOException("Private Wi-Fi address required");
         frames = store;
+        transport = policy;
         SecureRandom random = new SecureRandom();
         pin = String.format(Locale.US, "%08d", random.nextInt(100000000));
         byte[] bytes = new byte[16]; random.nextBytes(bytes);
@@ -49,7 +54,10 @@ public final class PairingServer implements Closeable {
             while (!closed) try {
                 final Socket s = server.accept();
                 if (!s.getInetAddress().isSiteLocalAddress() && !s.getInetAddress().isLoopbackAddress()) { s.close(); continue; }
-                s.setSoTimeout(1500); s.setTcpNoDelay(true); sockets.add(s);
+                s.setSoTimeout(1500); s.setTcpNoDelay(true);
+                // A large kernel send queue can turn a weak radio link into
+                // seconds of old video even though our Java queue is bounded.
+                s.setSendBufferSize(16384); sockets.add(s);
                 try { workers.execute(new Runnable() { public void run() { serve(s); } }); }
                 catch (RejectedExecutionException e) { sockets.remove(s); s.close(); }
             } catch (IOException e) { if (!closed) close(); }
@@ -126,7 +134,7 @@ public final class PairingServer implements Closeable {
             out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/x-maxmods-hud-stream\r\nX-Mirror-Protocol: 2\r\n" +
                     "Cache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
             out.flush();
-            long lastWrite = 0; int lastState = -1;
+            long lastWrite = 0, nextPicture = 0; int lastState = -1;
             while (!closed && !socket.isClosed()) {
                 FrameStore.Snapshot snapshot = frames.snapshot(after);
                 if (System.nanoTime() - started >= 10L * 60L * 1000000000L || snapshot.state.equals("stopped") || snapshot.state.equals("stalled")) {
@@ -134,13 +142,19 @@ public final class PairingServer implements Closeable {
                 }
                 int state = snapshot.state.equals("hidden") ? 4 : snapshot.state.equals("waiting") ? 3 : 2;
                 long now = System.nanoTime();
-                if (snapshot.frame != null) {
+                if (snapshot.frame != null && now >= nextPicture) {
+                    long began = System.nanoTime();
                     writeRecord(socket, out, 1, snapshot.frame.id, snapshot.frame.compressed);
+                    long ended = System.nanoTime();
+                    transport.sent(snapshot.frame.compressed.length, ended - began);
+                    nextPicture = began + transport.intervalNs(snapshot.frame.compressed.length);
                     after = snapshot.frame.id; lastWrite = System.nanoTime(); lastState = 2;
                 } else if (state != lastState || now - lastWrite >= 250000000L) {
                     writeRecord(socket, out, state, after, null); lastWrite = System.nanoTime(); lastState = state;
                 }
-                try { frames.awaitChange(snapshot.version, Math.max(1, 250 - (System.nanoTime() - lastWrite) / 1000000L)); }
+                long waitMs = Math.max(1, 250 - (System.nanoTime() - lastWrite) / 1000000L);
+                if (snapshot.frame != null) waitMs = Math.min(waitMs, Math.max(1, (nextPicture - System.nanoTime()) / 1000000L));
+                try { frames.awaitChange(snapshot.version, waitMs); }
                 catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IOException("Stream interrupted"); }
             }
         } finally { synchronized (this) { if (streamSocket == socket) streamSocket = null; } }

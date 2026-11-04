@@ -1,14 +1,13 @@
-# Max Mods HUD Mirror — car and Android prototype 0.2.0
+# Max Mods HUD Mirror — car and Android prototype 0.3.0
 
 Android screen mirroring to the **windscreen head-up display** on a BMW
 with iDrive 7 and Robert Nisipeanu's `cluster-render` installed.
 
-**Experimental build.** Max confirmed that 0.1.1 displayed the HUD test and
-briefly mirrored his phone, then reported poor sharpness, about 1 fps,
-cropping and intermittent `Phone frames stopped` errors. Version 0.2.0
-reworks capture and streaming; its performance and layouts still need a
-new on-car check. Host transport tests delivered approximately 30 fps.
-That measures the Java-to-Node stream, not the physical projector.
+**Experimental build.** Max confirmed that 0.2.0 works, then reported severe
+lag and eventual stopping after connecting BMW Bluetooth. Version 0.3.0
+adds bandwidth adaptation, connection recovery and radio diagnostics.
+The exact cause of that stop is unconfirmed; actual Bluetooth coexistence,
+projected fps and factory speed/sign visibility still need a car check.
 
 ## What this version does
 
@@ -19,6 +18,17 @@ That measures the Java-to-Node stream, not the physical projector.
   400 × 240 screenshots and the old 250 ms polling delay. The car app
   reports received fps; Wi-Fi, the renderer's shared upload budget and
   projector behaviour determine the actual displayed rate.
+- Keeps sound on **BMW Bluetooth media**. The mirror stream carries video.
+  **Auto** detects an available Bluetooth output and uses a conservative
+  profile on 2.4 GHz or an unknown band. Manual **Bluetooth priority** and
+  **Quality priority** are available in the phone app. Detail or fps may
+  reduce under load; Quality priority keeps capture detail. Quiet screens
+  can refine back to full detail. No audio focus/routing is changed.
+- Paces picture traffic, keeps a small socket send buffer and uses the
+  latest frame rather than building a playback queue. A broken video link
+  hides output and retries up to three times while live Park checks hold.
+  Stop, leaving Park, invalid data and explicit capture-stop messages stop
+  recovery. Session time limits continue through reconnects.
 - Defaults to **Compact**, with the picture above a clear lower HUD area.
   **HUD size** toggles between Compact and Full screen while running.
   Factory speed and sign visibility must be checked on the car; this app
@@ -39,7 +49,7 @@ That measures the Java-to-Node stream, not the physical projector.
 - Keeps only the latest screenshot in RAM. No screenshot or pairing token
   is saved, uploaded to an internet service or written to a log.
 
-This is display-only: no audio, phone control, iPhone support or automatic
+There is no audio in the mirror stream, phone control, iPhone support or automatic
 capture consent. Android requires approval for each capture session and
 stops capture when the phone locks on recent versions. Protected content
 can appear blank. Local Wi-Fi traffic is authenticated but not encrypted;
@@ -47,12 +57,12 @@ use a trusted BMW hotspot. A session expires after ten minutes.
 
 ## First test
 
-**Upgrading:** update both apps to **0.2.0**. In the car Store open
-**Settings > Check now** and install when **Available 0.2.0** appears.
+**Upgrading:** update both apps to **0.3.0**. In the car Store open
+**Settings > Check now** and install when **Available 0.3.0** appears.
 Install the new APK over the existing phone app; the signing identity is
 unchanged. Stop the old sharing session and pair again after updating.
 
-1. Install the [Android companion app 0.2.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.2.0.apk)
+1. Install the [Android companion app 0.3.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.3.0.apk)
    on the Samsung phone. The old APK is retained only for rollback.
 2. Keep Robert's `robertnisipeanu/idrive-apps` and
    `robertnisipeanu/mgu-store` sources enabled in the car's Store so
@@ -63,7 +73,10 @@ unchanged. Stop the old sharing session and pair again after updating.
    HUD Mirror** in iDrive. Press **Test HUD (8 seconds)**. A border/cross
    should appear in the selected layout, then disappear. If it does not, stop
    here and report the exact status shown in the car app.
-4. Connect the phone to the BMW's Wi-Fi hotspot. Open the Android app,
+4. For sound, connect **BMW Bluetooth media first**, select the phone as
+   the car's media source, verify audio, then return to HUD Mirror. Keep
+   wireless Android Auto disconnected for this test if it launches on pairing.
+   Connect the phone to the BMW's Wi-Fi hotspot. Open the Android app,
    press **Start sharing**, approve Android's capture prompt and read the
    address/code shown, e.g. `172.16.222.23/12345678`.
 5. In the car app press **Pair phone** and enter that address/code. Press
@@ -80,11 +93,23 @@ no BMW SDK is included here.
 
 ## If the first test fails
 
+- Bluetooth makes video lag: update both apps to 0.3.0, select **Bluetooth
+  priority** on the phone and keep the car app open. Report the Wi-Fi band,
+  received fps and exact last status. A Bluetooth output being available
+  does not prove the car selected it for playback. If the BMW offers 5 GHz
+  for that hotspot, it can avoid sharing 2.4 GHz with Bluetooth. See
+  [Bluetooth SIG's coexistence explanation](https://www.bluetooth.com/learn-about-bluetooth/key-attributes/reliability/).
+- `Sharing stopped: Wi-Fi connection changed`: Bluetooth pairing may have
+  started another wireless connection such as Android Auto. Use ordinary
+  Bluetooth media for the test and reconnect to the same BMW Wi-Fi first.
+- `Video link lost - reconnecting`: the picture is hidden while the app
+  opens a new stream. Sound remains under BMW/Android's control. If three
+  retries fail, the final connection reason stays visible.
 - Install fails at `generateSomeipInterfaces`: version 0.1.0 incorrectly
   requested getters on two notification-only gear fields. In the Store,
-  open **Settings > Check now**, confirm **Available 0.2.0**, and retry.
+  open **Settings > Check now**, confirm **Available 0.3.0**, and retry.
 - `Phone frames stopped` on 0.1.x: the old app confused a still picture
-  with a dead capture. Update **both** apps to 0.2.0. The new health checks
+  with a dead capture. Update **both** apps to 0.3.0. The new health checks
   use capture-worker heartbeats independently of image changes.
 - Low fps: read the **receiving ... fps** status while something on the
   phone is actually moving. A still picture legitimately produces no new

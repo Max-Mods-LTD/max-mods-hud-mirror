@@ -2,39 +2,39 @@
 // Generated from release_notes.json.
 'use strict';
 module.exports = {
-  "version": "0.2.0",
-  "phoneVersion": "0.2.0",
+  "version": "0.3.0",
+  "phoneVersion": "0.3.0",
   "changes": [
-    "Continuous stream targeting 30 fps; the app shows the received frame rate.",
-    "Sharper 768 x 432 picture; the whole phone screen fits without cropping.",
-    "Portrait and landscape sizing follows phone rotation.",
-    "HUD size switches between Compact and Full screen. Compact leaves space below for BMW.",
-    "Fixed false stops on still screens; capture and connection health are checked separately.",
-    "Update both apps to 0.2.0. Actual HUD fps and BMW speed/sign visibility need a car check."
+    "Sound uses BMW Bluetooth media; video stays on Wi-Fi.",
+    "Auto reduces video load on a congested Bluetooth/Wi-Fi link, targeting up to 30 fps.",
+    "Phone video modes: Auto, Bluetooth priority and Quality priority. Detail/fps may adapt.",
+    "Phone shows Wi-Fi band and Bluetooth output availability without changing audio routing.",
+    "Brief video link failures retry up to three times. Stop and live Park checks still apply.",
+    "Connect Bluetooth media first, then open HUD Mirror. Update both apps to 0.3.0."
   ],
   "lines": [
     [
-      "Continuous stream targeting 30 fps; the app shows the",
-      "received frame rate."
+      "Sound uses BMW Bluetooth media; video stays on Wi-Fi."
     ],
     [
-      "Sharper 768 x 432 picture; the whole phone screen fits",
-      "without cropping."
+      "Auto reduces video load on a congested Bluetooth/Wi-Fi link,",
+      "targeting up to 30 fps."
     ],
     [
-      "Portrait and landscape sizing follows phone rotation."
+      "Phone video modes: Auto, Bluetooth priority and Quality",
+      "priority. Detail/fps may adapt."
     ],
     [
-      "HUD size switches between Compact and Full screen. Compact",
-      "leaves space below for BMW."
+      "Phone shows Wi-Fi band and Bluetooth output availability",
+      "without changing audio routing."
     ],
     [
-      "Fixed false stops on still screens; capture and connection",
-      "health are checked separately."
+      "Brief video link failures retry up to three times. Stop and",
+      "live Park checks still apply."
     ],
     [
-      "Update both apps to 0.2.0. Actual HUD fps and BMW speed/sign",
-      "visibility need a car check."
+      "Connect Bluetooth media first, then open HUD Mirror. Update",
+      "both apps to 0.3.0."
     ]
   ]
 };

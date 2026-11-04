@@ -109,7 +109,29 @@
           "rows": [
             {
               "Text": {
-                "value": "Car 0.2.0 / phone 0.2.0",
+                "value": "Car 0.3.0 / phone 0.3.0",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "24": {
+          "type": "label",
+          "name": "mirrorAudio",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Sound: select BMW Bluetooth media before mirroring",
                 "type": "Text"
               }
             }
@@ -241,7 +263,7 @@
           "rows": [
             {
               "Text": {
-                "value": "What's new in 0.2.0 (1/6)",
+                "value": "What's new in 0.3.0 (1/6)",
                 "type": "Text"
               }
             }
@@ -263,7 +285,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Continuous stream targeting 30 fps; the app shows the",
+                "value": "Sound uses BMW Bluetooth media; video stays on Wi-Fi.",
                 "type": "Text"
               }
             }
@@ -285,7 +307,7 @@
           "rows": [
             {
               "Text": {
-                "value": "received frame rate.",
+                "value": "",
                 "type": "Text"
               }
             }

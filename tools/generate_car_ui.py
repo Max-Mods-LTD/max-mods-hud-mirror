@@ -34,6 +34,7 @@ rows = [
     (21, 'label', 'mirrorPark', 'Waiting for vehicle signals'),
     (22, 'label', 'mirrorPhone', 'Start sharing on your phone, then select Pair phone'),
     (23, 'label', 'mirrorVersion', 'Car ' + VERSION + ' / phone ' + RELEASE['phoneVersion']),
+    (24, 'label', 'mirrorAudio', 'Sound: select BMW Bluetooth media before mirroring'),
     (30, 'button', 'mirrorTest', 'Test HUD (8 seconds)'),
     (31, 'button', 'mirrorPair', 'Pair phone'),
     (32, 'button', 'mirrorStart', 'Start mirror'),

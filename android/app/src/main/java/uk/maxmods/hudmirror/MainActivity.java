@@ -19,6 +19,8 @@ public final class MainActivity extends Activity {
     private TextView state;
     private TextView pair;
     private Button start;
+    private Button mode;
+    private TextView link;
     private String selectedAddress;
     private final Runnable update = new Runnable() { public void run() { render(); handler.postDelayed(this, 500); } };
 
@@ -48,9 +50,10 @@ public final class MainActivity extends Activity {
         scroll.addView(layout);
         layout.addView(text("MAX MODS", 16, Color.rgb(102, 220, 167)));
         layout.addView(text("HUD Mirror", 34, Color.WHITE));
-        layout.addView(text("Android prototype 0.2.0 · 30 fps target", 14, Color.LTGRAY));
+        layout.addView(text("Android prototype 0.3.0 · up to 30 fps", 14, Color.LTGRAY));
         layout.addView(text("1. Park the car and select P.\n2. Connect this phone to the BMW Wi-Fi hotspot.\n3. Start sharing, then enter the address/code in the car's HUD Mirror app.", 17, Color.WHITE));
         state = text("Ready", 17, Color.rgb(102, 220, 167)); layout.addView(state);
+        link = text("", 14, Color.LTGRAY); layout.addView(link);
         pair = text("", 20, Color.WHITE); pair.setTextIsSelectable(true); layout.addView(pair);
         start = new Button(this); start.setText("Start sharing"); start.setAllCaps(false);
         layout.addView(start, new LinearLayout.LayoutParams(-1, dp(58)));
@@ -60,8 +63,18 @@ public final class MainActivity extends Activity {
         stop.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             stopService(new Intent(MainActivity.this, CaptureService.class)); render();
         }});
-        layout.addView(text("Display only · no audio or phone control\nThe whole phone screen fits without cropping. Landscape gives a wider picture. Change Compact / Full screen using HUD size in the car. Keep the car app open.\n\nAndroid asks permission each session. Locking the phone ends sharing. Protected apps may show a blank picture. Sessions end after 10 minutes.", 14, Color.LTGRAY));
+        mode = new Button(this); mode.setAllCaps(false); layout.addView(mode, new LinearLayout.LayoutParams(-1, dp(58)));
+        mode.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            String current = getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO);
+            String next = current.equals(TransportPolicy.AUTO) ? TransportPolicy.BLUETOOTH : current.equals(TransportPolicy.BLUETOOTH) ? TransportPolicy.QUALITY : TransportPolicy.AUTO;
+            getSharedPreferences("hud_mirror", MODE_PRIVATE).edit().putString("videoMode", next).apply(); render();
+        }});
+        layout.addView(text("Sound: connect BMW Bluetooth media before starting, select it in the car, then return to HUD Mirror. Video uses Wi-Fi.\n\nAuto adapts video when Bluetooth shares a slower link. Bluetooth priority reserves more bandwidth for sound; picture detail or fps can reduce. Quality priority keeps full capture detail. A 5 GHz Wi-Fi option, if available in your BMW, can help avoid sharing 2.4 GHz.\n\nThe whole phone screen fits. Landscape gives a wider picture. Change Compact / Full screen in the car. Keep the car app open.\n\nAndroid asks permission each session. Locking the phone ends sharing. Sessions end after 10 minutes.", 14, Color.LTGRAY));
         setContentView(scroll);
+        if (!CaptureService.active && getSharedPreferences("hud_mirror", MODE_PRIVATE).getBoolean("sharingWasActive", false)) {
+            CaptureService.status = "The previous sharing session ended unexpectedly. Start sharing again.";
+            getSharedPreferences("hud_mirror", MODE_PRIVATE).edit().putBoolean("sharingWasActive", false).apply();
+        }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 71);
     }
     private void begin() {
@@ -82,9 +95,15 @@ public final class MainActivity extends Activity {
     }
     private void render() {
         if (state == null) return;
-        state.setText(CaptureService.status);
-        pair.setText(CaptureService.pairingText);
+        updateText(state, CaptureService.status);
+        updateText(pair, CaptureService.pairingText);
         start.setEnabled(!CaptureService.active);
+        updateText(link, CaptureService.active ? CaptureService.linkStatus : RadioStatus.read(this).description());
+        String selected = getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO);
+        updateText(mode, "Video mode: " + (selected.equals(TransportPolicy.BLUETOOTH) ? "Bluetooth priority" : selected.equals(TransportPolicy.QUALITY) ? "Quality priority" : "Auto"));
+    }
+    private void updateText(TextView view, String value) {
+        if (!value.equals(view.getText().toString())) view.setText(value);
     }
     protected void onResume() { super.onResume(); handler.post(update); }
     protected void onPause() { handler.removeCallbacks(update); super.onPause(); }

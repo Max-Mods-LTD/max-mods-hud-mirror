@@ -3,6 +3,7 @@
 const assert = require('assert');
 const cp = require('child_process');
 const path = require('path');
+const {PhoneDiscovery}=require('../car/src/phone_discovery.js');
 const { PhoneClient, BYTES, WIDTH, HEIGHT } = require('../car/src/phone_client.js');
 const root = path.resolve(__dirname, '..');
 const child = cp.spawn('java', ['-cp', path.join(root, 'build', 'phone-tests'), 'PhoneServerHarness'].concat(process.argv[2] === 'smooth' ? ['smooth'] : []), { stdio: ['pipe','pipe','inherit'] });
@@ -36,10 +37,17 @@ async function command(name) {
     await until(() => done);
 }
 async function run(pin) {
+    assert(/^\d{6}$/.test(pin),'Phone must show a six-digit code');
+    const local={interfaces:[{address:'127.0.0.1',target:'127.0.0.1'}],loopback:true,timeout:600};
+    assert.strictEqual(await new PhoneDiscovery(local).find(pin,'pair'),'127.0.0.1');
+    assert.strictEqual(await new PhoneDiscovery(local).find('0123456789abcdef0123456789abcdef','resume'),'127.0.0.1');
+    await assert.rejects(new PhoneDiscovery(Object.assign({},local,{timeout:150})).find(pin==='000000'?'111111':'000000','pair'),/not found/);
+    const cancelled=new PhoneDiscovery(local),cancellation=cancelled.find(pin,'pair');cancelled.close();await assert.rejects(cancellation,/cancelled/);
+    console.log('PASS real Java/UDP discovery by six-digit code and remembered key; wrong code and cancellation');
     const denied = await p.request('127.0.0.1', '/v4/stream?after=0', null, null, 100);
     assert.strictEqual(denied.status, 403);
     assert.strictEqual((await p.request('127.0.0.1','/v4/status',null,null,100)).status,403);
-    const wrong = await p.request('127.0.0.1', '/v4/pair', null, pin === '00000000' ? '11111111' : '00000000', 100);
+    const wrong = await p.request('127.0.0.1', '/v4/pair', null, pin === '000000' ? '111111' : '000000', 100);
     assert.strictEqual(wrong.status, 403);
     const paired = await p.request('127.0.0.1', '/v4/pair', null, pin, 1024);
     assert.strictEqual(paired.status, 200);
@@ -54,7 +62,8 @@ async function run(pin) {
     const prepared=await p.prepare(token,'jpeg');assert.strictEqual(prepared.format,'jpeg');
     await assert.rejects(p.prepare(token,'h264'),/503/);await p.keyframe(token);
     const frames = [], states = [], errors = []; let firstPixels;
-    p.stream(token, { frame: (pixels, id) => {
+    p.stream(token, { frame: (pixels, id, content) => {
+        assert.deepStrictEqual(content,{x:0,y:0,w:info.width,h:info.height},'Per-frame phone bounds lost in transit');
         if (!frames.length) firstPixels = pixels;
         assert.strictEqual(pixels.length, info.width * info.height * 3 / 2); frames.push({ id, at: Date.now() });
     }, state: (s) => states.push(s), error: (e) => errors.push(e) });
@@ -82,7 +91,7 @@ async function run(pin) {
     const missing = await p.request('127.0.0.1', '/anything', info.token, null, 100);
     assert.strictEqual(missing.status, 404);
     // One initial bad attempt + a successful pair + three bad attempts uses the peer budget.
-    for (let i = 0; i < 3; i++) await p.request('127.0.0.1', '/v4/pair', null, 'BADCODE!', 100);
+    for (let i = 0; i < 3; i++) await p.request('127.0.0.1', '/v4/pair', null, 'BADPIN', 100);
     const limited = await p.request('127.0.0.1', '/v4/pair', null, pin, 100);
     assert.strictEqual(limited.status, 429);
     const replacement = new PhoneClient(), replacementErrors = []; let replacementFrames = 0;

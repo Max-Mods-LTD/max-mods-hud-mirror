@@ -29,7 +29,7 @@ app against its own existing BMW SDK during installation.
   transport (Copyright 2026 cauliflowermossgrape); original attribution retained.
 - The app icon includes DejaVu Sans glyph pixels. Bitstream/DejaVu notices
   are in `assets/DejaVu-LICENSE.txt`, also included in the car package. The
-  current native menus use BMW's own fonts; the old custom atlas is removed.
+  native menus use BMW's own fonts.
 - `assets/max-mods-logo.png`: official Max Mods artwork used at the director's
   request. Source/provenance in `assets/README.md`; brand rights remain with
   Max Mods. `assets/max-mods-logo-stacked.png` is the requested transparent
@@ -42,14 +42,8 @@ app against its own existing BMW SDK during installation.
   its proprietary system libraries are not redistributed here. The adapter
   never runs its firmware patch installer.
 
-Earlier 0.4/0.5 releases included Kazuhiko Arase's MIT QR generator and ZXing
-core 3.5.3 (Apache-2.0). They are removed from the current app/build. Historical
-source provenance remains in git; licenses/Apache-2.0.txt and the following
-MIT notice are retained for earlier downloadable releases.
+MIT-licensed renderer transport:
 
-MIT-licensed portions (original renderer transport and historical QR generator):
-
-Copyright (c) 2009 Kazuhiko Arase.
 Copyright (c) 2026 cauliflowermossgrape.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

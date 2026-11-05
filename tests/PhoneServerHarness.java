@@ -129,7 +129,7 @@ public class PhoneServerHarness {
         TransportPolicy streamPolicy=new TransportPolicy();streamPolicy.setProfile(store.fps()==60?"smooth":"sharp");
         PairingServer server = new PairingServer(InetAddress.getByName("127.0.0.1"), 8476, store, streamPolicy);
         server.setResumeKey("0123456789abcdef0123456789abcdef");
-        final byte[] pixels=java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("tests/fixtures/frame-"+store.width()+"x"+store.height()+".jpg"));
+        final byte[] pixels=ContentBounds.attach(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("tests/fixtures/frame-"+store.width()+"x"+store.height()+".jpg")),new int[]{0,0,store.width(),store.height(),store.width(),store.height()});
         // Synthetic NALs test transport/reference handling, not a real decoder.
         final byte[] idr={0,0,0,1,0x67,1,0,0,0,1,0x65,2},delta={0,0,0,1,0x41,3};
         if(avc){

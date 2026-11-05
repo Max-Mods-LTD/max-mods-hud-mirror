@@ -2,60 +2,65 @@
 // Generated from release_notes.json.
 'use strict';
 module.exports = {
-  "version": "0.7.0",
-  "phoneVersion": "0.7.0",
+  "version": "0.8.0",
+  "phoneVersion": "0.8.0",
   "changes": [
-    "Car menus now use BMW native pages, buttons, fonts, red selection and controller focus.",
-    "All menu resources load before entry. Failed or timed-out page changes recover to the main menu.",
-    "iDrive video has a separate page. Use BMW Back or tap the picture to return to native settings.",
-    "HUD and cluster sessions no longer run a custom iDrive menu renderer or controller grab.",
-    "JPEG decoding copies each output chunk once, avoiding repeated large frame-buffer allocations.",
-    "JPEG uses one capture clock and burst-tolerant recovery. Its requested rate no longer falls to 15 fps.",
-    "Hardware capture requests real-time encoder priority and the selected operating rate.",
-    "Diagnostics show phone capture, phone send and car received fps separately, plus video traffic.",
-    "BMW display, picture size, video, guide, update notes, test and reset controls remain available.",
-    "Update both apps to 0.7.0. Actual car frame rate and native menu presentation still need testing."
+    "Main BMW page is simpler. Extra controls now live in Settings.",
+    "Pair with a six-digit code. The car finds your phone on BMW Wi-Fi.",
+    "Remembered phones can reconnect after an address change, when local discovery is available.",
+    "Manual address/code pairing remains in Settings for networks that block discovery.",
+    "Phone background is pure black, with the transparent stacked Max Mods logo.",
+    "Full iDrive picture uses the physical screen area, including the space outside the BMW app panel.",
+    "Full screen keeps every phone edge in proportion. Different screen shapes still need black bars.",
+    "iDrive playback removes only encoder-added padding, using bounds attached to each frame.",
+    "BMW Back or a tap returns from the picture to the native menus.",
+    "GitHub now has a concise app showcase, setup guide and a stable Android download link.",
+    "Update both apps to 0.8.0. Full-screen hardware behaviour and Wi-Fi discovery need a car test."
   ],
   "lines": [
     [
-      "Car menus now use BMW native pages, buttons, fonts, red",
-      "selection and controller focus."
+      "Main BMW page is simpler. Extra controls now live in",
+      "Settings."
     ],
     [
-      "All menu resources load before entry. Failed or timed-out",
-      "page changes recover to the main menu."
+      "Pair with a six-digit code. The car finds your phone on BMW",
+      "Wi-Fi."
     ],
     [
-      "iDrive video has a separate page. Use BMW Back or tap the",
-      "picture to return to native settings."
+      "Remembered phones can reconnect after an address change,",
+      "when local discovery is available."
     ],
     [
-      "HUD and cluster sessions no longer run a custom iDrive menu",
-      "renderer or controller grab."
+      "Manual address/code pairing remains in Settings for networks",
+      "that block discovery."
     ],
     [
-      "JPEG decoding copies each output chunk once, avoiding",
-      "repeated large frame-buffer allocations."
+      "Phone background is pure black, with the transparent stacked",
+      "Max Mods logo."
     ],
     [
-      "JPEG uses one capture clock and burst-tolerant recovery. Its",
-      "requested rate no longer falls to 15 fps."
+      "Full iDrive picture uses the physical screen area, including",
+      "the space outside the BMW app panel."
     ],
     [
-      "Hardware capture requests real-time encoder priority and the",
-      "selected operating rate."
+      "Full screen keeps every phone edge in proportion. Different",
+      "screen shapes still need black bars."
     ],
     [
-      "Diagnostics show phone capture, phone send and car received",
-      "fps separately, plus video traffic."
+      "iDrive playback removes only encoder-added padding, using",
+      "bounds attached to each frame."
     ],
     [
-      "BMW display, picture size, video, guide, update notes, test",
-      "and reset controls remain available."
+      "BMW Back or a tap returns from the picture to the native",
+      "menus."
     ],
     [
-      "Update both apps to 0.7.0. Actual car frame rate and native",
-      "menu presentation still need testing."
+      "GitHub now has a concise app showcase, setup guide and a",
+      "stable Android download link."
+    ],
+    [
+      "Update both apps to 0.8.0. Full-screen hardware behaviour",
+      "and Wi-Fi discovery need a car test."
     ]
   ]
 };

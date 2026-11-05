@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
 const assert=require('assert'),fs=require('fs'),path=require('path');
-const {StreamDecoder,BYTES,MAX_WIRE_BYTES}=require('../car/src/stream_decoder.js');
+const {StreamDecoder,contentRect,BYTES,MAX_WIRE_BYTES}=require('../car/src/stream_decoder.js');
 const {JpegWorker}=require('../car/src/jpeg_worker.js');
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function record(kind,id,payload){payload=payload||Buffer.alloc(0);const h=Buffer.alloc(13);h.writeUInt32LE(payload.length,0);h[4]=kind;h.writeUInt32LE(id>>>0,5);h.writeUInt32LE(Math.floor(id/0x100000000),9);return Buffer.concat([h,payload]);}
@@ -16,6 +16,14 @@ async function until(fn){for(let i=0;i<400;i++){if(fn())return;await delay(5);}t
  console.log('PASS byte-fragmented native output copies into one bounded buffer; malformed size fails closed');
  const jpeg=fs.readFileSync(path.join(__dirname,'fixtures/frame-768x432.jpg'));
  const worker=new JpegWorker(768,432);const pixels=await worker.decode(jpeg);
+ function marked(bounds){const head=Buffer.from([255,216,255,239,0,18,77,77,67,82,0,0,0,0,0,0,0,0,0,0,0,0]);bounds.forEach((v,i)=>head.writeUInt16BE(v,10+i*2));return Buffer.concat([head,jpeg.slice(2)]);}
+ const bounded=marked([250,0,268,432,768,432]);assert.deepStrictEqual(contentRect(bounded,768,432),{x:250,y:0,w:268,h:432});assert((await worker.decode(bounded)).equals(pixels),'APP15 bounds changed native JPEG decoding');
+ assert.strictEqual(contentRect(jpeg,768,432),null);
+ for(const bounds of [[1,0,268,432,768,432],[750,0,268,432,768,432],[0,0,0,432,768,432],[0,0,576,324,576,324]])assert.throws(()=>contentRect(marked(bounds),768,432),/bounds/);
+ const exact=[];const tagged=new StreamDecoder({frame:(p,id,c)=>exact.push({id,c}),state:()=>{},error:e=>{throw e;}},{decode:()=>Promise.resolve(pixels)});
+ tagged.push(record(1,1,bounded));await until(()=>exact.length===1);tagged.push(record(1,2,marked([0,62,768,308,768,432])));await until(()=>exact.length===2);tagged.push(record(1,3,jpeg));await until(()=>exact.length===3);tagged.close();
+ assert.deepStrictEqual(exact,[{id:1,c:{x:250,y:0,w:268,h:432}},{id:2,c:{x:0,y:62,w:768,h:308}},{id:3,c:null}]);
+ console.log('PASS exact per-frame content bounds survive JPEG decode and rotation; missing metadata cannot reuse an old crop');
  assert.strictEqual(pixels.length,BYTES);assert(pixels[0]>220&&pixels[767]>220);
  const begin=Date.now();for(let i=0;i<60;i++)await worker.decode(jpeg);const ms=Date.now()-begin;worker.close();
  console.log('PASS bounded native JPEG color/atlas decode; 60 frames decoded in '+ms+' ms on host');

@@ -38,13 +38,9 @@ pages = [
         (20,'mirrorStatus','Stopped','label'),(21,'mirrorPark','Waiting for vehicle signals','label'),
         (22,'mirrorPhone','Start sharing on the phone','label'),
         (32,'mirrorStart','Start mirror'),(33,'mirrorStop','Stop mirror'),(31,'mirrorPair','Pair phone'),
-        (45,'mirrorView','View iDrive picture'),(35,'mirrorTarget','Display settings'),
-        (46,'mirrorSettings','Video and background options'),(37,'mirrorGuide','Connection guide'),
-        (39,'mirrorDiagnostics','Connection diagnostics'),(47,'mirrorUpdates',"What is new"),
-        (30,'mirrorTest','Test selected display (8 seconds)'),(38,'mirrorForceClose','Force close / reset app'),
-        (23,'mirrorVersion','Car '+VERSION+' / phone '+RELEASE['phoneVersion'],'label')]),
+        (45,'mirrorView','View iDrive picture'),(46,'mirrorSettings','Settings')]),
     (2, 'ST_MaxModsVideo', 'Max Mods phone picture', 'LT_State_A4A_WelcomeApp', [
-        (1400,'videoBack','Back to settings'),(1401,'videoStop','Stop mirror')]),
+        (1400,'videoBack','Back to menu'),(1401,'videoStop','Stop mirror')]),
     (3, 'ST_MaxModsDisplayPicker', 'Display destination', 'LT_State_Wide', [
         (1500,'pickHud','Head-up display'),(1501,'pickCluster','Instrument cluster'),(1502,'pickIdrive','iDrive screen')]),
     (4, 'ST_MaxModsLayoutPicker', 'Picture size', 'LT_State_Wide', [
@@ -69,13 +65,14 @@ pages = [
     (9, 'ST_MaxModsUpdates', 'Update notes', 'LT_State_Wide', [
         (40,'mirrorWhatsNew',"What is new in "+VERSION,'label'),(41,'mirrorReleaseLine1',release_lines[0][0],'label'),
         (42,'mirrorReleaseLine2',release_lines[0][1] if len(release_lines[0])>1 else '','label'),
-        (43,'mirrorReleasePrevious','Previous change'),(44,'mirrorReleaseNext','Next change'),(1900,'updatesBack','Back')])
+        (43,'mirrorReleasePrevious','Previous change'),(44,'mirrorReleaseNext','Next change'),(1900,'updatesBack','Back')]),
+    (11, 'ST_MaxModsSettingsHub', 'Settings', 'LT_State_Wide', [
+        (35,'mirrorTarget','Display settings'),(48,'settingsVideo','Video and background'),
+        (49,'settingsPair','Pair or change phone'),(51,'settingsManual','Manual pairing'),(37,'mirrorGuide','Connection guide'),
+        (39,'mirrorDiagnostics','Connection diagnostics'),(47,'mirrorUpdates','What is new'),
+        (30,'mirrorTest','Test selected display'),(38,'mirrorForceClose','Force close / reset app'),
+        (23,'mirrorVersion','Car '+VERSION+' / phone '+RELEASE['phoneVersion'],'label'),(50,'hubBack','Back')])
 ]
-changelog = ['# Release notes', '']
-for release in RELEASES:
-    changelog += ['## Car '+release['version']+' / Android '+release['phoneVersion'], '']
-    changelog += ['- '+change for change in release['changes']]+['']
-(ROOT/'CHANGELOG.md').write_text('\n'.join(changelog))
 containers = {}
 xml = ['<?xml version="1.0" encoding="UTF-8"?>','<application>']
 for sid,name,title,widget,controls in pages:
@@ -144,11 +141,11 @@ proxies.update({
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.
 write(TREE / 'permissions.json', {x: [] for x in ['masterAccessTable','mediatorAccessTable','ownerAccessTable','masterRegistrationTable','mediatorRegistrationTable','ownerRegistrationTable','domainRoleTable']})
-modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','connection_guide.js','cluster_render_client.js','jpeg_worker.js','native_video.js','mgu_render_client.js','idrive_renderer.js','gpu_video_renderer.js','saved_phone.js']
+modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','phone_discovery.js','stream_decoder.js','mirror_controller.js','release_notes.js','connection_guide.js','cluster_render_client.js','jpeg_worker.js','native_video.js','mgu_render_client.js','idrive_renderer.js','gpu_video_renderer.js','saved_phone.js']
 write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree': TREE.name, 'internet': True,
     'modules': ['src/' + x for x in modules], 'sdk': ['oap-sdk/src/core/OnlineApp.js','oap-sdk/src/logging/logging','oap-sdk/src/someip/someipBuilders']})
 write(ROOT / 'mgu-repo.json', {'schema': 1, 'name': 'MaxModsIdriveApps', 'title': 'Max Mods iDrive Apps', 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
-    'description': 'Phone mirroring with native BMW menus, one HUD/cluster/iDrive destination, remembered pairing and a connection guide.', 'version': VERSION, 'mguHmi': ['ID7'],
+    'description': 'Phone mirroring with native BMW menus, one HUD/cluster/iDrive destination, six-digit pairing, full-screen viewing and a built-in setup guide.', 'version': VERSION, 'mguHmi': ['ID7'],
     'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11','maxmods-video':'0.1.0'}},
     # Repo-tree tools are already programs/files. The updater rejects any
     # build field on a tool; only the app uses build='unit'.

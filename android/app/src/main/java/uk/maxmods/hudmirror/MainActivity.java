@@ -20,7 +20,7 @@ import org.json.*;
 
 public final class MainActivity extends Activity {
     private static final int CAPTURE=70;
-    private static final int BG=0xff0c0d10,PANEL=0xff191b21,MUTED=0xffa1a5af,RED=0xffc8121b;
+    private static final int BG=0xff000000,PANEL=0xff191b21,MUTED=0xffa1a5af,RED=0xffc8121b;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView state,pair,link;private Button start;private String selectedAddress;private int tab;private boolean guideOpen;
     private LinearLayout content;
@@ -64,9 +64,10 @@ public final class MainActivity extends Activity {
             LinearLayout c=card();c.addView(text("CONNECTION",12,MUTED));state=text("Ready",20,Color.WHITE);c.addView(state);link=text("",14,MUTED);c.addView(link);
             start=button("Start sharing",true,v->begin());
             button("Stop sharing",false,v->{stopService(new Intent(this,CaptureService.class));render();});
-            LinearLayout fallback=card();fallback.addView(text("PAIR ONCE IN THE CAR",12,MUTED));pair=text("",20,Color.WHITE);pair.setTypeface(Typeface.MONOSPACE);pair.setTextIsSelectable(true);fallback.addView(pair);
+            LinearLayout fallback=card();fallback.addView(text("PAIR ONCE · SIX-DIGIT CODE",12,MUTED));pair=text("",32,Color.WHITE);pair.setTypeface(Typeface.MONOSPACE);pair.setTextIsSelectable(true);fallback.addView(pair);
+            button("Manual pairing address",false,v->{if(!CaptureService.active){Toast.makeText(this,"Start sharing first",Toast.LENGTH_LONG).show();return;}TextView address=text(CaptureService.manualPairingText+"\n\nIn the car: Settings > Manual pairing.",20,Color.WHITE);address.setTextIsSelectable(true);address.setPadding(dp(24),dp(20),dp(24),dp(20));new AlertDialog.Builder(this).setTitle("Manual pairing").setView(address).setPositiveButton("Close",null).show();});
             button("Connection guide",false,v->{guideOpen=true;build();});
-            content.addView(text("Picture needs BMW Wi-Fi. Sound uses BMW Bluetooth media or your working Android Auto connection.\n\nStart sharing above, approve the entire screen, then choose Pair phone in the car and enter the address/code shown here. After pairing, starting on the phone starts the chosen car display.",14,MUTED));
+            content.addView(text("Picture needs BMW Wi-Fi. Sound uses BMW Bluetooth media or your working Android Auto connection.\n\nStart sharing above, approve the entire screen, then choose Pair phone in the car and enter just the six-digit code. The car finds this phone on Wi-Fi. After pairing, starting on the phone starts the chosen car display.\n\nIf discovery is blocked by the car's Wi-Fi, use Manual pairing address.",14,MUTED));
         }else if(tab==1){
             LinearLayout c=card();c.addView(text("VIDEO QUALITY",12,MUTED));boolean smooth="smooth".equals(prefs().getString("videoProfile","sharp"));
             c.addView(text(smooth?"Smooth · target 60 fps":"Sharp · target 30 fps",22,Color.WHITE));c.addView(text(smooth?"576 × 324 · smaller frames for a faster link":"768 × 432 · more picture detail",14,MUTED));
@@ -80,7 +81,7 @@ public final class MainActivity extends Activity {
                 JSONObject r=new JSONObject(bytes.toString("UTF-8")).getJSONArray("releases").getJSONObject(0);content.addView(text("Version "+r.getString("version"),16,MUTED));JSONArray changes=r.getJSONArray("changes");for(int i=0;i<changes.length();i++){LinearLayout c=card();c.addView(text(changes.getString(i),16,Color.WHITE));}
             }catch(Exception ignored){}
         }
-        content.addView(text("MAX MODS iDrive Apps  /  v0.7.0",12,MUTED));setContentView(scroll);render();
+        content.addView(text("MAX MODS iDrive Apps  /  v0.8.0",12,MUTED));setContentView(scroll);render();
     }
     private void connectionGuide(){
         content.addView(text("Connection guide",26,Color.WHITE));

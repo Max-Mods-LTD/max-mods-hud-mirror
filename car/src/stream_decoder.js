@@ -4,10 +4,20 @@ const { JpegWorker } = require('./jpeg_worker.js');
 const WIDTH = 768, HEIGHT = 432, BYTES = WIDTH * HEIGHT * 3 / 2;
 const MAX_WIRE_BYTES = 600000, HEADER = 13;
 
+// Optional private APP15 metadata describes encoder padding, never a crop of
+// the phone itself. It is attached to this exact JPEG, not polled separately.
+function contentRect(jpeg,width,height){
+ if(jpeg.length<22||jpeg[0]!==255||jpeg[1]!==216||jpeg[2]!==255||jpeg[3]!==239||jpeg[6]!==77||jpeg[7]!==77||jpeg[8]!==67||jpeg[9]!==82)return null;
+ const values=[];for(let n=10;n<22;n+=2)values.push(jpeg.readUInt16BE(n));
+ const [x,y,w,h,cw,ch]=values;
+ if(jpeg.readUInt16BE(4)!==18||cw!==width||ch!==height||w<2||h<2||values.some(v=>v%2)||x+w>width||y+h>height)throw new Error('Invalid phone picture bounds');
+ return {x,y,w,h};
+}
+
 class StreamDecoder {
     constructor(events, options) {
         const o = options || {};
-        this.h264=o.format==='h264-annexb';this.needIdr=true;this.lastKeyRequest=0;
+        this.width=o.width||WIDTH;this.height=o.height||HEIGHT;this.h264=o.format==='h264-annexb';this.needIdr=true;this.lastKeyRequest=0;
         this.worker = this.h264?null:new JpegWorker(o.width || WIDTH, o.height || HEIGHT);
         this.decode = o.decode || ((payload) => this.worker.decode(payload));
         this.events = events; this.buffer = Buffer.alloc(0); this.closed = false;
@@ -42,7 +52,8 @@ class StreamDecoder {
                     }
                     this.lastWireId = id;
                     // At most one in-flight decode and one latest waiting frame.
-                    this.pending = { payload: Buffer.from(this.buffer.slice(offset + HEADER, offset + HEADER + length)), id, epoch: this.epoch };
+                    const payload=Buffer.from(this.buffer.slice(offset+HEADER,offset+HEADER+length));
+                    this.pending = { payload, content:contentRect(payload,this.width,this.height), id, epoch: this.epoch };
                     this.pump();
                 }
                 offset += HEADER + length;
@@ -56,10 +67,10 @@ class StreamDecoder {
         const frame = this.pending; this.pending = null; this.decoding = true;
         this.decode(frame.payload).then((pixels) => {
             this.decoding = false;
-            if (!this.closed && frame.epoch === this.epoch) this.events.frame(pixels, frame.id);
+            if (!this.closed && frame.epoch === this.epoch) this.events.frame(pixels, frame.id, frame.content);
             this.pump();
         }).catch((e) => { this.decoding = false; this.fail(e); });
     }
     close() { this.closed = true; this.pending = null; this.buffer = Buffer.alloc(0); this.epoch++; if(this.worker)this.worker.close(); }
 }
-module.exports = { StreamDecoder, WIDTH, HEIGHT, BYTES, MAX_WIRE_BYTES, HEADER };
+module.exports = { contentRect, StreamDecoder, WIDTH, HEIGHT, BYTES, MAX_WIRE_BYTES, HEADER };

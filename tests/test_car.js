@@ -44,8 +44,10 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         g.updateStage({ statusActualStageDrive: 'P' }, 'statusActualStageDrive'); assert(g.allowed());
         now += 2501; assert(!g.allowed());
     });
-    await test('pairing permits only private IPv4 destinations and eight-digit codes', () => {
+    await test('pairing permits only six-digit discovery codes and private manual addresses', () => {
         assert.deepStrictEqual(parsePairing('172.16.222.23/00112233'), { host: '172.16.222.23', pin: '00112233' });
+        assert.deepStrictEqual(parsePairing('001 233'),{host:null,pin:'001233'});
+        assert.deepStrictEqual(parsePairing('10.232.70.219/001233'),{host:'10.232.70.219',pin:'001233'});
         ['8.8.8.8/12345678','127.0.0.1/12345678','169.254.1.2/12345678','192.168.1.255/12345678',
             '192.168.1.5:22/12345678','example.com/12345678','10.0.0.500/12345678','10.0.0.1/1234'].forEach((s) => assert.throws(() => parsePairing(s)));
     });

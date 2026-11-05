@@ -1,203 +1,66 @@
+<p align="center">
+  <img src="assets/max-mods-logo-stacked.png" alt="Max Mods" width="250">
+</p>
+
 # Max Mods iDrive Apps
 
-**HUD Mirror 0.7.0** for BMW iDrive 7, with Android companion 0.7.0.
-This source can hold more Max Mods apps in future. Its catalog name is
-**MaxModsIdriveApps**. Keep the working source URL
-**Max-Mods-LTD/max-mods-hud-mirror**, branch **main**; the GitHub repository
-itself has not been renamed.
+**HUD Mirror · Your Android phone on your BMW display.**
 
-## Update and connect
+### [Download the Android app](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/MaxModsHudMirror.apk)
 
-Version 0.7.0 replaces the painted car dashboard with BMW's actual native
-RHMI list pages, buttons, text, red selection highlight and controller focus,
-using the same public templates as the Waze app in the supplied reference.
-All page resources load before entry; rejected or timed-out navigation recovers
-to the main menu. Video/frame-copy and burst-recovery changes address low fps.
-**Update both apps.** Native presentation and real car fps need a physical test.
+[Visit Max Mods](https://www.max-mods.co.uk/) · [Install in the car](#install-in-the-car) · [Connect your phone](#connect-your-phone)
 
-1. Keep the robertnisipeanu/idrive-apps and robertnisipeanu/mgu-store sources
-   enabled. Use **Store > Settings > Check now** and update **Max Mods HUD
-   Mirror to 0.7.0**. Its GPU Video 0.1.0 dependency is an adapter; it does not
-   install or patch Waze. Max Mods Connect is no longer required or offered.
-2. Install [Android companion 0.7.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.7.0.apk)
-   over the existing app. It uses the same update-signing certificate.
-   Stop the old sharing session and pair once after updating both apps.
-3. Keep the car stationary in **P**, connect the phone to BMW Wi-Fi, and keep
-   the working BMW Bluetooth or Android Auto audio connection.
-4. On the phone, tap **Start sharing** and accept Android's capture prompt.
-   In the car, choose **Pair phone** and enter the phone's address/code exactly
-   as shown, including the slash. Pairing starts the selected display
-   automatically. There is no QR scanner or camera permission.
-5. After that first pairing, starting sharing on the linked phone automatically
-   starts the selected car display. No second Start is needed. Android still
-   requires capture consent on the phone for each new session. The car's Start
-   button can start an already-consented phone session; it cannot remotely
-   approve Android's permission prompt.
-6. In **Display settings > Destination**, choose **HUD**, **Instrument
-   cluster**, or **iDrive screen**. Only one destination runs at a time.
-   Choose **Compact** or **Full display** under **Picture size**. Choices
-   survive reopening the app. The whole phone picture keeps its aspect ratio.
-7. Leave **Keep mirroring on other pages: On** to use Android Auto/maps on the
-   main screen while HUD or cluster mirroring continues. An iDrive-screen
-   picture occupies that app page and is hidden when another page covers it.
+Mirror your phone to the **head-up display, instrument cluster or main iDrive screen**. Choose one screen, keep the whole phone picture visible, and control the app through BMW's own menus and iDrive controller.
 
-**Force close** releases this app's output and exits it. Reopen the app to
-reconnect to the still-sharing linked phone. It does not reset the head unit
-or stop the car's existing Waze, Android Auto or audio services.
+## Made to fit your BMW
 
-### Connection guide
+- **Actual BMW menus and buttons.** Native layouts, fonts, selection highlights and rotary-controller focus.
+- **A clean home page.** Start/Stop, Pair when needed, View picture and Settings. The extra controls are in Settings.
+- **Six-digit pairing.** Enter the code from your phone; the car finds it on BMW Wi-Fi and remembers the link. Manual pairing is available if discovery is blocked.
+- **Compact or Full display.** Compact leaves room for BMW information. Full uses the entire main screen area while preserving the whole phone picture and its proportions.
+- **Your existing sound connection.** Keep BMW Bluetooth media or your working Android Auto connection for audio.
+- **Background sharing.** Use other phone apps while sharing the entire screen. HUD/cluster mirroring can continue when you switch car apps.
+- **A built-in setup guide.** Connection help, display options, diagnostics, current update notes and app reset are together in Settings.
 
-Open **Connection guide** in either app. The phone guide includes Wi-Fi and Bluetooth settings shortcuts.
-Both guides use the same steps from connection_guide.json:
+Turn your phone landscape for the largest movie picture. Different phone/car screen shapes require black bars to keep every phone pixel visible. Android-protected video may appear black.
 
-- In iDrive, open **COM / Communication > Mobile devices**, move the controller
-  right and open **Settings** to enable Wi-Fi. Menu labels vary by software.
-- Under **New device > Internet, apps**, find the BMW network name/password
-  if equipped. Some versions show these in Mobile devices > Settings.
-- On Samsung, use **Settings > Connections > Wi-Fi** to join that network.
-  Choose **Stay connected** if warned about no Internet. Keep the existing
-  BMW Wi-Fi link if Android Auto already uses it.
-- Connect BMW Bluetooth media and select it under MEDIA / Radio, or keep
-  the working Android Auto sound route. Wi-Fi carries the mirror picture.
-- Start sharing, approve the entire screen and pair once in the car. The
-  pairing code is separate from the Wi-Fi password. After a Wi-Fi/IP change,
-  restart sharing and pair the new address.
+## Install in the car
 
-The mirror uses local Wi-Fi. Internet/data service for online videos is
-separate. If sound slows the picture, select **Phone > Display > Sound
-coexistence > Audio priority**. Use 5 GHz only if the factory BMW menu offers
-it; the app does not change channels or audio routes. BMW references are
-listed in connection_guide.json.
+Requires **BMW iDrive 7 / MGU with the community Store already installed**, plus an Android phone running Android 8 or newer. Use the mirror while stationary in **P**.
 
-## Video paths and frame rate
+1. In the car's Store, add this source:
 
-| Selection | Phone transport | Car path |
-| --- | --- | --- |
-| Automatic, HUD / cluster, compatible Waze decoder installed | Hardware AVC, selected canvas when supported; 1280 × 720 fallback, whole-screen fit | Separate Waze hardware-decoder process, then the shared cluster renderer |
-| JPEG compatibility, unavailable/failed GPU decoder | Native JPEG, selected profile canvas | Bounded native JPEG worker, then cluster renderer |
-| iDrive screen | Native JPEG, selected profile canvas | Native decode to a RAM-only I420 surface, GPU-drawn by mgu-render |
+   ```text
+   Max-Mods-LTD/max-mods-hud-mirror
+   ```
 
-The hardware adapter uses the already-installed Waze-on-cluster executable.
-It starts a separate process with its own FIFO, control socket and settings.
-AVB, UDP and alternate CarPlay input are disabled in that process. It never
-runs Waze's patch installer or changes the existing Waze/Android Auto setup.
-Missing/incompatible native code, failed startup, a stalled writer or decoder
-error falls back to JPEG. Hardware path compatibility and timing depend on
-the installed decoder and the car.
+2. Refresh the Store and install **Max Mods HUD Mirror**. Keep the standard community sources enabled so the Store can find its required renderer tools.
+3. Install the [Android app](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/MaxModsHudMirror.apk) on your phone. Allow installation from your browser when Android asks. It updates the existing Max Mods app.
 
-| Phone profile | Renderer canvas | Requested capture/link rate |
-| --- | --- | --- |
-| Sharp | 768 × 432 | Up to 30 fps |
-| Smooth | 576 × 324 | Up to 60 fps |
+The source appears as **Max Mods iDrive Apps**, ready for more Max Mods apps. New to the community Store? Start with the [Store project's installation guide](https://github.com/robertnisipeanu/mgu-store).
 
-AVC first tries the selected canvas and falls back to 1280 × 720 if needed.
-Android fits the whole phone into it; the decoder scales to the renderer
-canvas. Hardware AVC requires Android 12L or later for uniform whole-screen
-fit; older phones use JPEG. An encoder input cap enforces the selected maximum
-before compression. Hardware support may limit capture to 30 fps.
-For HUD/cluster, the optional **Display60** tool requests the shared
-renderer's 60 fps clock. It restarts that renderer when installed; install it
-while parked with other display apps stopped. A 60 Hz clock alone cannot fix
-a slow encoder, decoder or Wi-Fi link.
+## Connect your phone
 
-Host JPEG integration checks use synthetic 30/60-fps producers; results are
-recorded in VALIDATION.md. **Received fps is not projector fps.** Phone
-capture, radio coexistence, native motion packing, renderer budget, display
-ownership and physical hardware still determine quality and speed. No stable
-30/60-fps car result is claimed. Landscape uses more of the available width;
-portrait remains fully visible with side space.
+1. **Switch on BMW Wi-Fi.** In iDrive, open **COM / Communication → Mobile devices**, move the controller right, then open **Settings → Wi-Fi**. Labels vary by BMW software. The network name/password may appear under **New device → Internet, apps** if equipped.
+2. **Join that network on your phone.** Choose **Stay connected** if Android warns that it has no Internet. If Android Auto already connects you to BMW Wi-Fi, keep that connection. Keep Bluetooth media or Android Auto connected for sound.
+3. **Start sharing on the phone.** Open HUD Mirror, tap **Start sharing** and approve sharing the **entire screen**. The phone shows a six-digit code.
+4. **Pair once in the car.** Open HUD Mirror → **Pair phone** and enter only those six digits. Once linked, starting sharing on the phone starts the selected car display automatically.
+5. **Choose your display.** Open **Settings → Display settings → Destination** and choose HUD, instrument cluster or iDrive screen. Under **Picture size**, choose Compact or Full display. Only one destination runs at a time.
 
-Sound uses the existing **BMW Bluetooth media / Android Auto** route. The
-mirror transport carries video and takes no audio focus, microphone access or
-routing control. Auto limits AVC to 1.2 Mbps with audio on a shared/unknown
-Wi-Fi band, 1.8 Mbps with audio on 5 GHz, or 2.4 Mbps without audio. Manual
-Audio priority uses the 1.2 Mbps ceiling; Quality allows 3 Mbps. Measured
-congestion lowers the target to a 0.6 Mbps floor, then recovers gradually.
-These are requested encoder rates, not measured output. Backlogs older than
-300 ms skip references and request an IDR. JPEG reduces compressed quality
-before lowering its requested fps and keeps dimensions fixed. The socket now paces only bytes; the capture worker owns the frame clock.
-Burst-tolerant windowed recovery replaces the old consecutive-write rule; the requested JPEG
-target stays at least 30, while the actual link can still deliver fewer frames.
-Native JPEG output is assembled in one bounded buffer instead of repeatedly
-copying a growing frame. Android reuses its padded-pixel buffer and hardware
-capture requests real-time encoder priority/operating rate. Wireless Android
-Auto and audio performance still require a physical test.
+**Phone not found?** Check both devices are on BMW Wi-Fi. Some networks block discovery: on the phone choose **Manual pairing address**, then in the car choose **Settings → Manual pairing** and enter the displayed address/code. A remembered phone can reconnect after an address change when discovery is available.
 
-## Native BMW menus and video page
+**Back from the picture:** press BMW Back or tap the picture. Use **View iDrive picture** to return. **Settings → Force close / reset app** closes the app so you can reopen it after a glitch.
 
-The home, display settings, destination, picture size, video/background,
-diagnostics, connection guide and update pages use BMW's `LT_State_Wide`,
-`LT_Button_1Row` and `LT_Label_1Row` widgets. The head unit supplies the fonts,
-layout, red focus/selection and rotary handling. There is no painted menu,
-custom menu font atlas, controller grab or FrontCCU subscription. The Max Mods
-logo remains in the app icon and on the phone, with its transparent background.
+**Picture slows when sound plays:** try **Phone → Display → Sound coexistence → Audio priority**. For a faster link, choose **Smooth** in Video quality; it targets 60 fps at 576 × 324. **Sharp** targets 30 fps at 768 × 432. These are targets; actual performance depends on the phone, Wi-Fi and car. Full-screen presentation and automatic discovery need verification on your head unit.
 
-All nine page resources load before the entry point is offered. Menu clicks
-open an already-loaded page without hiding a custom surface first. Open/Back
-requests have deadlines and restore the native main menu on failure. HMI waits
-use a separate queue from speed/Park polling. Later navigation cannot be
-replaced by a late result from an earlier click.
+Android requires capture permission for each sharing session. Locking or force-stopping the phone ends sharing; sessions currently last up to ten minutes. Online videos need a separate working Internet connection.
 
-Only the **iDrive picture** page uses a video embed. BMW Back or a tap on the
-picture returns to native settings. **View iDrive picture** reopens it. Other
-settings pages hide the embed while the source continues; another app covers
-it normally. HUD/cluster sessions never start that menu/video renderer, and
-closing the central output releases its connection. Force close/reset remains
-on the native main menu. Test display uses the selected destination for eight
-seconds; update notes are in **What is new**.
+## Max Mods
 
-The phone retains its dark background, transparent stacked MAX / MODS logo,
-larger type, press feedback and green sharing-active Start button.
+OEM-style upgrades, CarPlay and Android Auto retrofits, ambient lighting and vehicle customisation.
 
-**Connection diagnostics** shows the active video path, requested/received fps,
-phone capture fps, phone sent fps, video traffic, signal ages and last issue.
-Phone statistics are polled only while that page is visible. These are actual
-published frame/write counts; capture heartbeats never create fps. A static
-screen can show zero new frames while sharing remains live. Reconnect linked
-phone retries without entering its code. Connecting can be cancelled; codec
-compatibility changes apply immediately.
+**[Explore Max Mods and enquire about installation](https://www.max-mods.co.uk/)**
 
-Compact reserves the lower HUD area; Full uses the available target rectangle.
-Cluster uses the central map target and requests its slot like Waze. It does
-not select the full gauge panel. Factory speed, signs, gauges, warnings and
-display arbitration still require a physical check.
+Independent Max Mods software, built on community work by Robert Nisipeanu, IterioDev and other contributors. BMW supplies the native menu widgets on the head unit; this is not an official BMW product.
 
-## Sessions and privacy
-
-- Fresh zero-speed and **P** readings remain required. Powertrain CRC events
-  and genuine subscription renewals address quiet-selector expiry. Missing,
-  stale or invalid readings still clear output; no Park override was added.
-- Leaving the companion's screen keeps its foreground capture service running.
-  Locking/force-stopping the phone, changing its Wi-Fi address, capture expiry
-  and the ten-minute session limit end sharing.
-- Stop in the car stays stopped for the same phone capture session. A newly
-  consented phone sharing session can start automatically. Hidden single-app
-  captures clear output; share the whole screen for normal background use.
-- The linked phone address and a long-lived reconnect credential are saved in
-  private app storage: mode 0600 on the car, Android private preferences with
-  backup disabled on the phone. **Forget linked car** rotates/removes the
-  phone credential; the car also has **Forget paired phone**.
-- Session bearer tokens/PINs are ephemeral. Screens/video remain in RAM/FIFOs;
-  screen pixels, credentials and PINs are not logged or sent
-  to an internet service. Local HTTP is authenticated, without encryption:
-  use a trusted BMW Wi-Fi network.
-- If the phone's address changes, pair again. Automatic reconnect does not
-  scan arbitrary networks.
-
-Manual pairing pulls video from phone TCP 8476 and needs no inbound car
-pairing listener or temporary firewall rule. The old Connect tool's source
-is retained for historical uninstall/rollback; this version never contacts
-it. GPU Video's lease kills only its own decoder on close/timeout and removes
-its RAM files. Display60 restores its own settings on uninstall.
-
-## Source and validation
-
-See [feature coverage](FEATURES.md), [validation](VALIDATION.md),
-[protocol](STREAM_PROTOCOL.md), [changelog](CHANGELOG.md) and
-[third-party notices](THIRD_PARTY_NOTICES.md). Native menu resources are validated against the real Store packer; physical
-BMW rendering is not emulated on the host.
-
-The Store links the car's existing BMW SDK. No BMW SDK, firmware, signing key
-or proprietary donor is distributed. Earlier signed APKs remain in downloads
-for rollback. Every app update regenerates its visible release notes from
-release_notes.json.
+[Developer guide](docs/development/README.md) · [Protocol](docs/development/PROTOCOL.md) · [Validation](docs/development/VALIDATION.md) · [Credits and licences](THIRD_PARTY_NOTICES.md)

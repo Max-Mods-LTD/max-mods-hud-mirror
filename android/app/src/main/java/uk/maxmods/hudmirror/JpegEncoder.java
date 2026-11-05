@@ -37,7 +37,7 @@ final class JpegEncoder {
         canvas.drawBitmap(source, new Rect(0,0,width,height), new RectF((w-dw)/2,(h-dh)/2,(w+dw)/2,(h+dh)/2), paint);
         output.reset();
         if (!target.compress(Bitmap.CompressFormat.JPEG, quality, output)) throw new IllegalStateException("Video encoding failed");
-        return output.toByteArray();
+        return ContentBounds.attach(output.toByteArray(), ContentBounds.fit(width,height,w,h));
     }
     void close() { if(source!=null)source.recycle();if(target!=null)target.recycle();source=target=null;paddedPixels=null; }
 }

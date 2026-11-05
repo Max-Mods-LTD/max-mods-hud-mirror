@@ -18,6 +18,7 @@ public final class CaptureService extends Service {
     public static volatile boolean active;
     public static volatile String status = "Ready";
     public static volatile String pairingText = "";
+    public static volatile String manualPairingText = "";
     public static volatile String linkStatus = "";
     private final Handler main = new Handler(Looper.getMainLooper());
     private final FrameStore frames = new FrameStore();
@@ -148,7 +149,8 @@ public final class CaptureService extends Service {
                 }
                 public void keyframe(){captureHandler.post(new Runnable(){public void run(){if(avc!=null)avc.keyframe();}});}
             });server.start();
-            pairingText = bindAddress + "/" + server.getPin();
+            pairingText = server.getPin();
+            manualPairingText = bindAddress + "/" + pairingText;
             status = "Sharing ready. Pair in the car."; startedMs = SystemClock.elapsedRealtime();
             main.post(monitor);
         } catch (Exception e) { finish("Could not start sharing: " + e.getMessage()); }
@@ -224,7 +226,7 @@ public final class CaptureService extends Service {
     private void finish(String message) { status = message; cleanup(); stopSelf(); }
     private synchronized void cleanup() {
         if (cleaning) return;
-        cleaning = true; active = false; pairingText = ""; main.removeCallbacks(monitor);
+        cleaning = true; active = false; pairingText = ""; manualPairingText = ""; main.removeCallbacks(monitor);
         getSharedPreferences("hud_mirror", MODE_PRIVATE).edit().putBoolean("sharingWasActive", false).apply();
         if (captureHandler != null) captureHandler.removeCallbacksAndMessages(null);
         if (rotationListener != null) { ((DisplayManager) getSystemService(DISPLAY_SERVICE)).unregisterDisplayListener(rotationListener); rotationListener = null; }

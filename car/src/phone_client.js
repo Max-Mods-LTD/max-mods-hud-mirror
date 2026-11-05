@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
 const http = require('http');
+const {PhoneDiscovery}=require('./phone_discovery.js');
 
 const { StreamDecoder, WIDTH, HEIGHT, BYTES } = require('./stream_decoder.js');
 const PORT = 8476;
 
 function parsePairing(text) {
-    const m = /^\s*(\d{1,3}(?:\.\d{1,3}){3})\s*\/\s*(\d{8})\s*$/.exec(String(text || ''));
-    if (!m) throw new Error('Enter the phone address/code exactly as shown on the phone');
+    const code=/^\s*(\d{3})\s*(\d{3})\s*$/.exec(String(text||''));
+    if(code)return {host:null,pin:code[1]+code[2]};
+    const m = /^\s*(\d{1,3}(?:\.\d{1,3}){3})\s*\/\s*(\d{6}|\d{8})\s*$/.exec(String(text || ''));
+    if (!m) throw new Error('Enter the six-digit phone code, or its manual address/code');
     const oct = m[1].split('.').map(Number);
     if (oct.some((v) => v < 0 || v > 255) || oct[3] === 0 || oct[3] === 255 ||
         !(oct[0] === 10 || (oct[0] === 172 && oct[1] >= 16 && oct[1] <= 31) || (oct[0] === 192 && oct[1] === 168))) {
@@ -17,7 +20,12 @@ function parsePairing(text) {
 }
 
 class PhoneClient {
-    constructor() { this.requests = new Set(); this.decoders = new Set(); this.closed = false; }
+    constructor() { this.requests = new Set(); this.decoders = new Set(); this.discoveries=new Set(); this.closed = false; }
+    discover(key,kind){
+        if(this.closed)return Promise.reject(new Error('Phone connection closed'));
+        const discovery=new PhoneDiscovery();this.discoveries.add(discovery);
+        return discovery.find(key,kind).then(host=>{this.discoveries.delete(discovery);return host;},e=>{this.discoveries.delete(discovery);throw e;});
+    }
     request(host, route, token, body, limit) {
         return new Promise((resolve, reject) => {
             if (this.closed) { reject(new Error('Phone connection closed')); return; }
@@ -51,22 +59,23 @@ class PhoneClient {
     }
     pair(text) {
         const p = parsePairing(text);
-        return this.request(p.host, '/v4/pair', null, p.pin, 1024).then((r) => {
-            if (r.status === 404) throw new Error('Update the phone app to version 0.7.0');
-            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.7.0');
-            return this.readInfo(p.host,r);
-        });
+        return (p.host?Promise.resolve(p.host):this.discover(p.pin,'pair')).then(host=>this.request(host, '/v4/pair', null, p.pin, 1024).then((r) => {
+            if (r.status === 404) throw new Error('Update the phone app to version 0.8.0');
+            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.8.0');
+            return this.readInfo(host,r);
+        }));
     }
     readInfo(host,r){
         if(r.status!==200)throw new Error('Phone connection refused ('+r.status+')');
         let data;try{data=JSON.parse(r.body.toString('utf8'));}catch(_){throw new Error('Invalid phone reply');}
         if(!/^[a-f0-9]{32}$/.test(data.token||'')||data.protocol!==4||
             !((data.width===768&&data.height===432&&data.fps===30)||(data.width===576&&data.height===324&&data.fps===60))||
-            ['jpeg','h264-annexb'].indexOf(data.format)<0)throw new Error('Update both HUD Mirror apps to 0.7.0');
+            ['jpeg','h264-annexb'].indexOf(data.format)<0)throw new Error('Update both HUD Mirror apps to 0.8.0');
         return {host,token:data.token,resume:data.resume,width:data.width,height:data.height,fps:data.fps,format:data.format};
     }
-    resume(device){parsePairing(device.host+'/12345678');if(!/^[a-f0-9]{32}$/.test(device.resume))return Promise.reject(new Error('Pair the phone again'));
-        return this.request(device.host,'/v4/resume',null,device.resume,2048).then(r=>this.readInfo(device.host,r));}
+    resume(device){parsePairing(device.host+'/123456');if(!/^[a-f0-9]{32}$/.test(device.resume))return Promise.reject(new Error('Pair the phone again'));
+        const resume=host=>this.request(host,'/v4/resume',null,device.resume,2048).then(r=>this.readInfo(host,r));
+        return resume(device.host).catch(e=>{if(this.closed)throw e;return this.discover(device.resume,'resume').then(resume);});}
     prepare(pairing,codec){return this.request(pairing.host,'/v4/prepare',pairing.token,codec,2048).then(r=>{if(r.status!==200)throw new Error('Video setup ('+r.status+'): '+r.body.toString('utf8').slice(0,180));return this.readInfo(pairing.host,r);});}
     keyframe(pairing){return this.request(pairing.host,'/v4/keyframe',pairing.token,'1',128).catch(()=>{});}
     stats(pairing){return this.request(pairing.host,'/v4/status',pairing.token,null,1024).then(r=>{
@@ -101,6 +110,7 @@ class PhoneClient {
     }
     close() {
         this.closed = true; this.decoders.forEach((d) => d.close()); this.decoders.clear();
+        this.discoveries.forEach(d=>d.close());this.discoveries.clear();
         this.requests.forEach((r) => r.destroy()); this.requests.clear();
     }
 }

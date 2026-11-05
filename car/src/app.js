@@ -8,9 +8,9 @@ const {MirrorController}=require('./mirror_controller.js'),{PhoneClient}=require
 const {NativeVideo}=require('./native_video.js'),{IdriveRenderer}=require('./idrive_renderer.js'),{GpuVideoRenderer}=require('./gpu_video_renderer.js');
 const {SavedPhone,SavedSettings}=require('./saved_phone.js'),release=require('./release_notes.js'),guide=require('./connection_guide.js');
 const logger=logging.getSDKLogger(),STATE='ST_MaxModsHudMirror',VIDEO='ST_MaxModsVideo';
-const PAGES=[STATE,VIDEO,'ST_MaxModsDisplayPicker','ST_MaxModsLayoutPicker','ST_MaxModsSettingsPicker','ST_MaxModsDiagnostics','ST_MaxModsConnectionGuide','ST_MaxModsDisplaySettings','ST_MaxModsUpdates'];
+const PAGES=[STATE,VIDEO,'ST_MaxModsDisplayPicker','ST_MaxModsLayoutPicker','ST_MaxModsSettingsPicker','ST_MaxModsDiagnostics','ST_MaxModsConnectionGuide','ST_MaxModsDisplaySettings','ST_MaxModsUpdates','ST_MaxModsSettingsHub'];
 const NAMES=['mirrorStatus','mirrorPark','mirrorPhone','mirrorVersion','mirrorStart','mirrorStop','mirrorPair','mirrorView','mirrorTarget','mirrorSettings','mirrorGuide','mirrorDiagnostics','mirrorUpdates','mirrorTest','mirrorForceClose',
- 'videoBack','videoStop','pickHud','pickCluster','pickIdrive','pickCompact','pickFull','pickAutoGpu','pickJpeg','pickBackground','pickProfile','pickForget','pickDiagnostics','settingsBack',
+ 'settingsVideo','settingsPair','hubBack','settingsManual','videoBack','videoStop','pickHud','pickCluster','pickIdrive','pickCompact','pickFull','pickAutoGpu','pickJpeg','pickBackground','pickProfile','pickForget','pickDiagnostics','settingsBack',
  'diagOutput','diagRate','diagPhone','diagCapture','diagPhoneRate','diagTraffic','diagSpeed','diagPark','diagIssue','diagIssue2','diagSignals','diagReconnect','diagBack',
  'guideTitle','guideLine1','guideLine2','guideLine3','guideLine4','guidePrevious','guideNext','guideBack','displayTarget','mirrorLayout','displayTest','displayBack',
  'mirrorWhatsNew','mirrorReleaseLine1','mirrorReleaseLine2','mirrorReleasePrevious','mirrorReleaseNext','updatesBack'];
@@ -21,7 +21,7 @@ class HudMirrorApp extends OnlineApp{
   this.saved=new SavedPhone();this.settings=new SavedSettings();this.background=this.settings.value.background;
   this.guard=new ParkGuard();this.mirror=new MirrorController(this.guard,this.settings.value);this.mirror.hardware=this.settings.value.hardware;
   this.video=new NativeVideo(()=>this.closePage(VIDEO),()=>this.render(),logger);
-  this.mirror.makeCentral=()=>{this._showVideoRequested=true;return new IdriveRenderer(this.video);};
+  this.mirror.makeCentral=()=>{this._showVideoRequested=true;return new IdriveRenderer(this.video,{layout:this.mirror.layout});};
   this.mirror.makeGpu=(target,layout,paired)=>new GpuVideoRenderer(target,layout,paired);this.mirror.canGpu=()=>GpuVideoRenderer.available();
   this.signals=new VehicleSignals(this.guard,()=>{this.mirror.checkPark();this.maybeStart();this.render();});
   this.mirror.on('change',()=>this.render());
@@ -44,6 +44,7 @@ class HudMirrorApp extends OnlineApp{
   NAMES.forEach(n=>{this._ui[n]=rhmi.getByName(n);if(!this._ui[n])throw new Error('Missing UI control '+n);});
   const bind=(n,fn)=>this.bind(n,fn);
   bind('mirrorStart',()=>this.mirror.starting?this.stopMirror():this.startMirror(false));bind('mirrorStop',()=>this.stopMirror());bind('mirrorPair',()=>this.pairPhone());
+  bind('settingsVideo',()=>this.openPage('ST_MaxModsSettingsPicker'));bind('settingsPair',()=>this.pairPhone());bind('settingsManual',()=>this.pairPhone(true));bind('hubBack',()=>this.closePage('ST_MaxModsSettingsHub'));
   bind('mirrorView',()=>this.showVideo());bind('mirrorTarget',()=>this.chooseDisplay());bind('mirrorSettings',()=>this.chooseSettings());bind('mirrorGuide',()=>this.chooseGuide());
   bind('mirrorDiagnostics',()=>this.chooseDiagnostics());bind('mirrorUpdates',()=>this.openPage('ST_MaxModsUpdates'));bind('mirrorTest',()=>this.startMirror(true));bind('mirrorForceClose',()=>this.forceClose());
   bind('videoBack',()=>this.closePage(VIDEO));bind('videoStop',()=>this.stopMirror());
@@ -97,7 +98,7 @@ class HudMirrorApp extends OnlineApp{
  }
  chooseDisplay(){return this.openPage('ST_MaxModsDisplaySettings');}
  chooseLayout(){return this.openPage('ST_MaxModsLayoutPicker');}
- chooseSettings(){return this.openPage('ST_MaxModsSettingsPicker');}
+ chooseSettings(){return this.openPage('ST_MaxModsSettingsHub');}
  chooseDiagnostics(){return this.openPage('ST_MaxModsDiagnostics');}
  chooseGuide(){return this.openPage('ST_MaxModsConnectionGuide');}
  showVideo(){this._showVideoRequested=false;if(!this.mirror.running||this.mirror.target!=='idrive'||!this.video.surface){this.mirror.note('Start mirroring to the iDrive screen first');return Promise.resolve(false);}return this.openPage(VIDEO);}
@@ -107,12 +108,12 @@ class HudMirrorApp extends OnlineApp{
  resumePhone(){
   if(this._done||this._resumeBusy||this._spelling||this.mirror.running||this.mirror.starting||!this.saved.value)return;
   this._resumeBusy=true;const epoch=this.mirror.generation,p=this._resumeClient=new PhoneClient();
-  p.resume(this.saved.value).then(info=>{if(this._done||epoch!==this.mirror.generation||this._spelling)return;this.mirror.pairing=info;if(info.token!==this._autoSession){this._autoSession=info.token;this._pendingSession=info.token;this.mirror.gpuFailed=false;this.maybeStart();this.render();}}).catch(()=>{}).then(()=>{p.close();if(this._resumeClient===p)this._resumeClient=null;this._resumeBusy=false;});
+  p.resume(this.saved.value).then(info=>{if(this._done||epoch!==this.mirror.generation||this._spelling)return;this.mirror.pairing=info;if(info.host!==this.saved.value.host)this.saved.save(info);if(info.token!==this._autoSession){this._autoSession=info.token;this._pendingSession=info.token;this.mirror.gpuFailed=false;this.maybeStart();this.render();}}).catch(()=>{}).then(()=>{p.close();if(this._resumeClient===p)this._resumeClient=null;this._resumeBusy=false;});
  }
  startMirror(test){if(!test&&!this.mirror.pairing){this.mirror.note('Start sharing on the linked phone, or pair it first');return;}if(!test){this._pendingSession=null;this._autoSession=this.mirror.pairing.token;}return this.mirror.start(test);}
  stopMirror(){this._pendingSession=null;this._showVideoRequested=false;if(this.mirror.pairing)this._autoSession=this.mirror.pairing.token;this.mirror.stop();}
  retryConnection(){this.stopMirror();this._autoSession=null;this.mirror.gpuFailed=false;if(!this.saved.value){this.mirror.note('Pair the phone first');return;}this.mirror.note('Checking linked phone. Start sharing on the phone if it is stopped.');this.resumePhone();}
- pairPhone(){this.stopMirror();this._spelling=true;this.video.show(false);return spell(this,'Phone address/code').then(text=>{this._spelling=false;if(!this._done&&text)return this.mirror.pair(text).then(()=>this.linked());},e=>{this._spelling=false;throw e;});}
+ pairPhone(manual){this.stopMirror();this._spelling=true;this.video.show(false);return spell(this,manual?'Phone address/code':'Phone 6-digit code').then(text=>{this._spelling=false;if(!this._done&&text)return this.mirror.pair(text).then(()=>this.linked());},e=>{this._spelling=false;throw e;});}
  toggleBackground(){this.background=!this.background;this.render();}
  reportVisibility(visible){const name=visible?'registerHmiVisible':'unregisterHmiVisible';if(typeof this[name]==='function')Promise.resolve(this[name]()).catch(()=>{});if(this.background&&this.mirror.running&&typeof this.registerActive==='function')Promise.resolve(this.registerActive()).catch(()=>{});}
  write(name,value){const c=this._ui[name];if(!c||this._written[name]===value)return;this._written[name]=value;Promise.resolve(c.setValue(0,'Text',value,'Text')).catch(()=>{});}
@@ -127,10 +128,10 @@ class HudMirrorApp extends OnlineApp{
   if(this._done)return;const m=this.mirror,target=m.target==='map'?'Instrument cluster':m.target==='idrive'?'iDrive screen':'Head-up display';
   this.settings.save({target:m.target,layout:m.layout,background:this.background,hardware:m.hardware});
   this.write('mirrorStatus',m.status.slice(0,95));this.write('mirrorPark',this.guard.reason()||'Stationary, Park confirmed');this.write('mirrorPhone',m.pairing?'Phone linked':'Start sharing on the phone, then Pair phone');
-  this.write('mirrorStart',m.starting?'Cancel connection':'Start mirror');this.showControl('mirrorStart',!m.running);this.showControl('mirrorStop',m.running);this.showControl('mirrorView',m.running&&m.target==='idrive');
+  this.write('mirrorStart',m.starting?'Cancel connection':'Start mirror');this.showControl('mirrorStart',!m.running);this.showControl('mirrorStop',m.running);this.showControl('mirrorView',m.running&&m.target==='idrive');this.showControl('mirrorPair',!m.pairing&&!this.saved.value);
   this.write('displayTarget','Destination: '+target);this.write('mirrorLayout','Picture size: '+(m.layout==='full'?'Full display':'Compact'));
   this.write('pickHud',(m.target==='hud'?'Selected: ':'')+'Head-up display');this.write('pickCluster',(m.target==='map'?'Selected: ':'')+'Instrument cluster');this.write('pickIdrive',(m.target==='idrive'?'Selected: ':'')+'iDrive screen');
-  this.write('pickCompact',(m.layout==='compact'?'Selected: ':'')+'Compact - reserve BMW information space');this.write('pickFull',(m.layout==='full'?'Selected: ':'')+'Full display - keep complete phone picture');
+  this.write('pickCompact',(m.layout==='compact'?'Selected: ':'')+'Compact - reserve BMW information space');this.write('pickFull',(m.layout==='full'?'Selected: ':'')+'Full display - whole picture, maximum screen area');
   this.write('pickAutoGpu',(m.hardware?'Selected: ':'')+'Automatic - hardware GPU video when available');this.write('pickJpeg',(!m.hardware?'Selected: ':'')+'JPEG compatibility mode');this.write('pickBackground','Keep mirroring on other pages: '+(this.background?'On':'Off'));
   this.write('pickProfile','Phone Display > Video quality: Smooth targets 60 fps');
   this.write('mirrorWhatsNew','Version '+release.version+' / change '+(this._releaseIndex+1)+' of '+release.lines.length);this.write('mirrorReleaseLine1',release.lines[this._releaseIndex][0]);this.write('mirrorReleaseLine2',release.lines[this._releaseIndex][1]||'');

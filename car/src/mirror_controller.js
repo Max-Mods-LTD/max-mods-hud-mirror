@@ -43,7 +43,7 @@ class MirrorController extends EventEmitter {
         this.makeCentral=o.makeCentral||null;this.makeGpu=o.makeGpu||null;this.canGpu=o.canGpu||(()=>false);this.hardware=true;this.starting=false;this.useGpu=false;this.releasing=null;
         this.videoWidth = WIDTH; this.videoHeight = HEIGHT; this.videoFps = 30;this.receivedFps=0;this.lastIssue='';
         this.targetWidth = WIDTH; this.targetHeight = HEIGHT;
-        this.streamAt = null; this.lastContactAt = null; this.latestPixels = null;
+        this.streamAt = null; this.lastContactAt = null; this.latestPixels = null; this.latestContent = null;
         this.lastRenderAt = null; this.frameTimes = []; this.captureState = 'waiting';
         this.pictureWaitAt = null; this.lastStatusAt = null; this.latestFrameId = 0;
         this.connectionGeneration = 0; this.retryCount = 0; this.retryTimer = null; this.healthySince = null;
@@ -51,11 +51,14 @@ class MirrorController extends EventEmitter {
     note(text) { this.status = text; this.emit('change'); }
     videoStatus(text) { this.note(this.targetState && this.targetState !== 'shown' ? 'Display: ' + this.detail + '; ' + text : text); }
     toggleLayout() {
-        this.layout = this.layout === 'compact' ? 'full' : 'compact';
-        if(this.running&&this.useGpu){const test=this.testing;this.stop('Changing layout');this.start(test);return;}
-        if (this.renderer && this.layer !== null) this.renderer.set(this.layer, hudRect(this.layout, this.targetWidth, this.targetHeight, this.videoWidth, this.videoHeight));
+        const next=this.layout==='compact'?'full':'compact';
+        if(this.running&&this.useGpu){this.layout=next;const test=this.testing;this.stop('Changing layout');this.start(test);return;}
+        if(this.renderer&&this.layer!==null&&this.renderer.setLayout){const size=this.renderer.setLayout(next);if(size){this.targetWidth=size.width;this.targetHeight=size.height;}}
+        this.layout=next;
+        if(this.renderer&&this.layer!==null)this.renderer.set(this.layer,hudRect(this.layout,this.targetWidth,this.targetHeight,this.videoWidth,this.videoHeight));
         this.emit('change');
     }
+
     setTarget(target) {
         if(['hud','map','idrive'].indexOf(target)<0)throw new Error('Unknown display');
         if(target===this.target)return;
@@ -166,7 +169,7 @@ class MirrorController extends EventEmitter {
                 if (state !== 'active') {
                     this.renderer.set(this.layer, { visible: false });
                     if(!current())return;
-                    this.latestPixels = null;
+                    this.latestPixels = null; this.latestContent = null;
                     this.pictureWaitAt = state === 'hidden' ? null : this.pictureWaitAt === null ? now : this.pictureWaitAt;
                     this.note(state === 'hidden' ? 'Shared app hidden. Return to it on the phone.' : 'Waiting for phone picture');
                 } else {
@@ -175,22 +178,22 @@ class MirrorController extends EventEmitter {
                     // Refresh the renderer's video deadline only on live records,
                     // never on a local timer or after a lost/paused phone stream.
                     if (!this.useGpu && this.latestPixels && now - this.lastRenderAt >= 750) {
-                        this.renderer.frame(this.layer, this.latestPixels, this.latestFrameId);
+                        this.renderer.frame(this.layer, this.latestPixels, this.latestFrameId, this.latestContent);
                         if(!current())return;
                         this.lastRenderAt = now;
                     }
                     if (this.lastFrameAt !== null && now - this.lastFrameAt > 1000) {this.receivedFps=0;this.videoStatus('Capture active; waiting for next picture');}
                 }
             },
-            frame: (pixels, id) => {
+            frame: (pixels, id, content) => {
                 if (!current()) return;
                 if (this.captureState !== 'active') return;
                 if (!this.useGpu && pixels.length !== this.videoWidth * this.videoHeight * 3 / 2) { this.stop('Invalid phone video frame'); return; }
                 const now = this.clock();
                 if (this.healthySince === null) this.healthySince = now;
-                this.latestPixels = pixels; this.latestFrameId = id;
+                this.latestPixels = pixels; this.latestFrameId = id; this.latestContent = content;
                 this.lastFrameAt = this.lastRenderAt = now; this.pictureWaitAt = null;
-                const renderer=this.renderer,accepted=renderer.frame(this.layer,pixels,id);
+                const renderer=this.renderer,accepted=renderer.frame(this.layer,pixels,id,content);
                 if(!current()||renderer!==this.renderer||accepted===false)return;
                 renderer.set(this.layer, { visible: true });
                 if(!current())return;
@@ -213,7 +216,7 @@ class MirrorController extends EventEmitter {
         if(this.useGpu){this.gpuFailed=true;this.start(false);return;}
         this.connectionGeneration++;
         this.phone.close(); this.renderer.set(this.layer, { visible: false });
-        this.latestPixels = null; this.lastFrameAt = null; this.lastContactAt = null;
+        this.latestPixels = null; this.latestContent = null; this.lastFrameAt = null; this.lastContactAt = null;
         this.streamAt = null; this.pictureWaitAt = null; this.lastRenderAt = null;
         this.frameTimes = []; this.lastStatusAt = null; this.captureState = 'waiting'; this.healthySince = null;
         const attempt = ++this.retryCount;
@@ -240,7 +243,7 @@ class MirrorController extends EventEmitter {
         }
         this.layer = null; this.lastFrameAt = null;
         this.targetState = ''; this.detail = '';
-        this.latestPixels = null; this.lastContactAt = null; this.streamAt = null;
+        this.latestPixels = null; this.latestContent = null; this.lastContactAt = null; this.streamAt = null;
         this.pictureWaitAt = null; this.lastRenderAt = null; this.frameTimes = []; this.lastStatusAt = null;
         this.captureState = 'waiting';this.receivedFps=0;
         this.phone.close(); this.phone = this.makePhone();

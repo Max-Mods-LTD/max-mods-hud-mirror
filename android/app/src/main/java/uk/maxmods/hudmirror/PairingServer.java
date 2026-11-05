@@ -27,6 +27,7 @@ public final class PairingServer implements Closeable {
     private String pairedPeer;
     private Thread listener;
     private Socket streamSocket;
+    private PhoneDiscovery discovery;
     public final RateMeter wireRate=new RateMeter();
 
     public PairingServer(InetAddress bind, int port, FrameStore store) throws IOException {
@@ -37,7 +38,7 @@ public final class PairingServer implements Closeable {
         frames = store;
         transport = policy;
         SecureRandom random = new SecureRandom();
-        pin = String.format(Locale.US, "%08d", random.nextInt(100000000));
+        pin = String.format(Locale.US, "%06d", random.nextInt(1000000));
         byte[] bytes = new byte[16]; random.nextBytes(bytes);
         StringBuilder hex = new StringBuilder();
         for (byte b : bytes) hex.append(String.format(Locale.US, "%02x", b & 255));
@@ -63,6 +64,9 @@ public final class PairingServer implements Closeable {
     public synchronized boolean isPaired() { return pairedPeer != null; }
     public synchronized boolean isStreaming(){return streamSocket!=null&&!streamSocket.isClosed();}
     public void start() {
+        // A blocked UDP discovery must not prevent manual pairing/video.
+        try { discovery = new PhoneDiscovery(server.getInetAddress(), getPort(), pin, resumeKey); discovery.start(); }
+        catch (IOException | RuntimeException ignored) { if (discovery != null) discovery.close(); discovery = null; }
         listener = new Thread(new Runnable() { public void run() {
             while (!closed) try {
                 final Socket s = server.accept();
@@ -117,9 +121,9 @@ public final class PairingServer implements Closeable {
                 reply(socket,200,"application/json",info());return;
             }
             if (start[0].equals("POST") && start[1].equals("/v4/pair")) {
-                if (h.containsKey("transfer-encoding") || !"8".equals(h.get("content-length"))) { reply(socket, 400, "", null); return; }
-                byte[] b = new byte[8];
-                for (int n = 0; n < 8;) { int r = in.read(b, n, 8 - n); if (r < 0) throw new EOFException(); n += r; }
+                if (h.containsKey("transfer-encoding") || !"6".equals(h.get("content-length"))) { reply(socket, 400, "", null); return; }
+                byte[] b = new byte[6];
+                for (int n = 0; n < 6;) { int r = in.read(b, n, 6 - n); if (r < 0) throw new EOFException(); n += r; }
                 synchronized (this) {
                     int count = attempts.containsKey(peer) ? attempts.get(peer) : 0;
                     // A single small attempt budget for the entire session, not a resettable timer.
@@ -222,6 +226,7 @@ public final class PairingServer implements Closeable {
     public void close() {
         if (closed) return;
         closed = true; frames.clear();
+        if (discovery != null) discovery.close();
         try { server.close(); } catch (IOException ignored) { }
         synchronized (sockets) { for (Socket s : sockets) try { s.close(); } catch (IOException ignored) { } sockets.clear(); }
         workers.shutdownNow(); writeDeadlines.shutdownNow();

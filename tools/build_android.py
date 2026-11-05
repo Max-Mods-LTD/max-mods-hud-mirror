@@ -49,7 +49,7 @@ if not key.exists():
         '-alias', 'hudmirror', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '3650',
         '-dname', 'CN=Max Mods HUD Mirror Prototype')
 version = ET.parse(ROOT / 'android/app/src/main/AndroidManifest.xml').getroot().attrib['{http://schemas.android.com/apk/res/android}versionName']
-dest = ROOT / 'dist' / ('Max_Mods_HUD_Mirror_Android_v' + version + '.apk')
+dest = ROOT / 'dist' / 'MaxModsHudMirror.apk'
 dest.parent.mkdir(exist_ok=True)
 run(tools / 'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hudmirror', '--ks-pass', 'pass:' + password,
     '--key-pass', 'pass:' + password, '--out', dest, aligned)
@@ -58,4 +58,4 @@ published = ROOT / 'downloads' / dest.name
 published.parent.mkdir(exist_ok=True)
 shutil.copyfile(dest, published)
 published.with_suffix('.apk.sha256').write_text(hashlib.sha256(published.read_bytes()).hexdigest() + '  ' + published.name + '\n')
-print('Built', dest)
+print('Built', dest, 'version', version)

@@ -59,9 +59,14 @@ for(const id of ['maxmods-display60','maxmods-video']){
     assert(!Object.prototype.hasOwnProperty.call(tool,'build'),'The Store rejects a build field on repo tools: '+id);
 }
 assert.strictEqual(ui.containers['2'].name,'ST_MaxModsVideo');
+const home=Object.values(ui.containers['1'].components);
+assert.deepStrictEqual(home.filter(r=>r.type==='button').map(r=>r.name).sort(),['mirrorStart','mirrorStop','mirrorPair','mirrorView','mirrorSettings'].sort());
+const hub=Object.values(ui.containers['11'].components);
+['mirrorTarget','settingsVideo','settingsPair','settingsManual','mirrorGuide','mirrorDiagnostics','mirrorUpdates','mirrorTest','mirrorForceClose'].forEach(name=>assert(hub.some(r=>r.name===name)));
+assert.strictEqual(new Set(rows.map(r=>r.name)).size,rows.length,'Duplicate native control names');
 assert(!manifest.modules.some(m=>/dashboard|gpu_canvas|brand_canvas/.test(m)));
 const xml=fs.readFileSync(path.join(root,'car',manifest.tree,'rhmiData/uiDescriptions/ID7/application.xml'),'utf8');
-assert.strictEqual((xml.match(/widget="LT_State_Wide"/g)||[]).length,8);
+assert.strictEqual((xml.match(/widget="LT_State_Wide"/g)||[]).length,9);
 assert.strictEqual((xml.match(/widget="LT_State_A4A_WelcomeApp"/g)||[]).length,1);
 assert(!permissions.proxies['de.bmw.infotainment.controlelements.FrontCCU']);
 const ids=Array.from(xml.matchAll(/<(?:container|component|layoutGroup) id="(\d+)"/g),m=>m[1]);

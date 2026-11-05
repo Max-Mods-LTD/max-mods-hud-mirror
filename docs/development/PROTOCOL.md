@@ -1,21 +1,22 @@
 # Phone stream protocol 4
 
-Current phone and car version is **0.7.0**, retaining protocol 4. Update both
+Current phone and car version is **0.8.0**, retaining protocol 4. Update both
 for current traffic handling and connection guides. The phone binds its selected
 private Wi-Fi IPv4 address on TCP 8476. Requests with an Origin, unsupported
 routes/body lengths or unauthorised peers/tokens are refused.
 
 ## Pairing and linked start
 
-POST /v4/pair exchanges the eight-digit PIN for an ephemeral 128-bit bearer
+POST /v4/pair exchanges the six-digit PIN for an ephemeral 128-bit bearer
 token, a private reconnect credential and protocol/profile information.
 Pairing has a bounded per-peer/session attempt budget.
 
 POST /v4/resume accepts the fixed 32-hex reconnect credential. It reconnects
 only to a running capture server and returns that session's token/info.
 Failed attempts are bounded. It cannot start MediaProjection or approve
-Android consent. The car polls its one saved private address every two
-seconds while idle; a new token can auto-start after genuine Park checks.
+Android consent. The car tries its saved private address while idle. If that fails, bounded
+local discovery matches the saved key and can update the address without
+another pairing code. A new token can auto-start after genuine Park checks.
 A car Stop suppresses auto-start for that token.
 
 The credential is held in Android private preferences (backup disabled) and
@@ -112,13 +113,29 @@ half-width U/V are side by side beneath it. No screenshot file is used.
 HUD/cluster JPEG sends that atlas to cluster-render. Cluster uses map with
 contend=true, not the full gauge panel. Compact/Full geometry keeps aspect.
 
+Each current JPEG carries a private APP15 marker immediately after SOI:
+`FF EF 00 12`, ASCII `MMCR`, then six uint16 big-endian values: x, y, width,
+height, canvas width, canvas height. These describe only encoder-added
+padding around the complete phone picture. Bounds align outward to even
+YUV420 edges and travel with the exact frame, including during rotation.
+The receiver validates them against the negotiated canvas. Missing metadata
+uses the complete canvas; it never reuses previous-frame bounds. JPEG workers
+and receivers that ignore APP15 continue decoding normally.
+
+For iDrive only, the writer copies that rectangle's full Y, U and V planes
+into its output. A dimension change creates and binds a new file only after
+a complete first frame. This removes double letterboxing without clipping
+any phone content. HUD/cluster continue to receive the full canvas.
+
 iDrive output converts the atlas to contiguous I420 planes in a RAM-only
-/dev/shm/mgu-video-maxmods-* file. Its 64-byte MGUV v1 header names dimensions,
+/dev/shm/mgu-video-maxmods-* file. Its 64-byte MGVF v1 header names dimensions,
 three slots, sequence, selected slot, BT.601 and full range. The writer fills
 the next slot, publishes slot then sequence. mgu-render samples newest frames
 on the GPU without per-frame menu uploads. Close unregisters and removes
 the file. Only the separate iDrive picture page sends a small black-background plus
-image/video draw command; menus are genuine native BMW RHMI widgets. No
+image/video draw command. Compact uses the embed box; Full uses a layer at
+physical (0,0,width,height), requiring foreground protection. Native VIDEO
+fits the picture into that area with its aspect ratio preserved; menus are genuine native BMW RHMI widgets. No
 font/menu atlas or custom rotary-controller input is used.
 
 The maxmods-video helper uses /run/maxmods-video/control.sock. Its bounded
@@ -134,13 +151,29 @@ Speed/Park freshness, app visibility options and session deadlines remain
 independent of transport. No output is authorised by cached/timer-generated
 vehicle readings.
 
-## Local connection
+## Local discovery and pairing
 
-QR pairing and its TCP 8477 listener are removed from the current apps.
-Manual pairing and trusted resume need no inbound car firewall opening.
-The obsolete Connect tool remains in source/rollback material and
-is not listed or required by the current catalog.
+The phone's optional UDP 8476 responder exists only during a sharing session.
+It receives `MMHUD1 <nonce>` (32 lowercase hex characters) on the selected
+Wi-Fi subnet. The response is `MMHUD1 <nonce> <pin-proof> <resume-proof>`.
+Each proof is HMAC-SHA256 in lowercase hex, keyed by the six-digit PIN or
+saved reconnect key, over ASCII `MMHUD1:<nonce>`; an absent key is `-`.
+The PIN/key is not sent verbatim in a discovery packet. A short PIN is not
+strong encryption; the local network must be trusted.
 
-The local protocol is authenticated but not transport-encrypted. Use a
-trusted BMW network. Only the private reconnect credential/address and display
-preferences persist; screens, PINs and session tokens do not.
+The car sends at most three subnet-broadcast probes per private IPv4
+interface, for at most 1.8 seconds, and validates nonce, proof and source.
+It learns only the replying private address, then performs the normal
+credential-checked HTTP exchange. Multiple matching phones are refused.
+It does not scan hosts, contact a cloud service or change firewall rules.
+The responder limits replies, accepts only its Wi-Fi subnet, and closes with
+sharing. Discovery failure never stops manual address/code pairing or video.
+
+Pairing PINs have bounded per-peer and total session attempts on HTTP.
+Replies do not include screenshots, device names, raw PINs or session tokens.
+The saved key also allows a remembered phone to be found after DHCP changes.
+Older phones with an eight-digit PIN can still be paired manually by the car.
+
+Local HTTP is authenticated but not transport-encrypted. Only the private
+reconnect key/address and display preferences persist; screens, PINs and
+session tokens do not.

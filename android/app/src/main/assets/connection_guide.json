@@ -47,18 +47,27 @@
       "title": "6. Pair once and start",
       "lines": [
         "Phone app: Start sharing, then approve the entire screen.",
-        "Car app: Pair phone. Type the phone address/code as shown.",
-        "This code is separate from the BMW Wi-Fi password.",
-        "After pairing, starting on the phone starts the chosen screen."
+        "Car app: Pair phone. Enter just the six-digit phone code.",
+        "The car finds the phone on the same BMW Wi-Fi network.",
+        "Pair once; starting on the phone then starts the chosen screen."
       ]
     },
     {
-      "title": "7. If sound slows the picture",
+      "title": "7. If the phone is not found",
+      "lines": [
+        "Check that both devices use the same BMW Wi-Fi network.",
+        "Some BMW networks block automatic discovery.",
+        "Phone app: Manual pairing address. Car: Settings > Manual pairing.",
+        "Enter the address/code shown by the phone, including the slash."
+      ]
+    },
+    {
+      "title": "8. If sound slows the picture",
       "lines": [
         "Phone app > Display > Sound coexistence > Audio priority.",
         "Keep BMW Wi-Fi connected while Bluetooth sound is playing.",
         "Use 5 GHz only if your factory BMW menu offers that choice.",
-        "Changed Wi-Fi? Restart sharing, then pair the new address."
+        "After an address change, restart sharing; the car reconnects."
       ]
     }
   ],

@@ -177,28 +177,6 @@
             }
           ]
         },
-        "35": {
-          "type": "button",
-          "name": "mirrorTarget",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Display settings",
-                "type": "Text"
-              }
-            }
-          ]
-        },
         "46": {
           "type": "button",
           "name": "mirrorSettings",
@@ -215,139 +193,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Video and background options",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "37": {
-          "type": "button",
-          "name": "mirrorGuide",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Connection guide",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "39": {
-          "type": "button",
-          "name": "mirrorDiagnostics",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Connection diagnostics",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "47": {
-          "type": "button",
-          "name": "mirrorUpdates",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "What is new",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "30": {
-          "type": "button",
-          "name": "mirrorTest",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Test selected display (8 seconds)",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "38": {
-          "type": "button",
-          "name": "mirrorForceClose",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 3,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Force close / reset app",
-                "type": "Text"
-              }
-            }
-          ]
-        },
-        "23": {
-          "type": "label",
-          "name": "mirrorVersion",
-          "properties": {
-            "Visible": {
-              "value": 1,
-              "type": "UInt"
-            },
-            "Focusable": {
-              "value": 0,
-              "type": "UInt"
-            }
-          },
-          "rows": [
-            {
-              "Text": {
-                "value": "Car 0.7.0 / phone 0.7.0",
+                "value": "Settings",
                 "type": "Text"
               }
             }
@@ -393,7 +239,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Back to settings",
+                "value": "Back to menu",
                 "type": "Text"
               }
             }
@@ -1419,7 +1265,7 @@
           "rows": [
             {
               "Text": {
-                "value": "What is new in 0.7.0",
+                "value": "What is new in 0.8.0",
                 "type": "Text"
               }
             }
@@ -1441,7 +1287,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Car menus now use BMW native pages, buttons, fonts, red",
+                "value": "Main BMW page is simpler. Extra controls now live in",
                 "type": "Text"
               }
             }
@@ -1463,7 +1309,7 @@
           "rows": [
             {
               "Text": {
-                "value": "selection and controller focus.",
+                "value": "Settings.",
                 "type": "Text"
               }
             }
@@ -1516,6 +1362,272 @@
         "1900": {
           "type": "button",
           "name": "updatesBack",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Back",
+                "type": "Text"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "11": {
+      "type": "state",
+      "name": "ST_MaxModsSettingsHub",
+      "components": {
+        "121": {
+          "type": "title",
+          "name": "ST_MaxModsSettingsHubTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Settings",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "35": {
+          "type": "button",
+          "name": "mirrorTarget",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Display settings",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "48": {
+          "type": "button",
+          "name": "settingsVideo",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Video and background",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "49": {
+          "type": "button",
+          "name": "settingsPair",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Pair or change phone",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "51": {
+          "type": "button",
+          "name": "settingsManual",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Manual pairing",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "37": {
+          "type": "button",
+          "name": "mirrorGuide",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Connection guide",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "39": {
+          "type": "button",
+          "name": "mirrorDiagnostics",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Connection diagnostics",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "47": {
+          "type": "button",
+          "name": "mirrorUpdates",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "What is new",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "30": {
+          "type": "button",
+          "name": "mirrorTest",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Test selected display",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "38": {
+          "type": "button",
+          "name": "mirrorForceClose",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Force close / reset app",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "23": {
+          "type": "label",
+          "name": "mirrorVersion",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Car 0.8.0 / phone 0.8.0",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "50": {
+          "type": "button",
+          "name": "hubBack",
           "properties": {
             "Visible": {
               "value": 1,

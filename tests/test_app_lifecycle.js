@@ -30,7 +30,7 @@ function fixture(a){
  const rows=new Map(),loaded=[],opened=[],closed=[];let mapped;
  Object.keys(ui.containers).forEach(id=>{const s=ui.containers[id],page=new EventEmitter();page.getId=()=>Number(id);page.updateResources=()=>{loaded.push(s.name);return Promise.resolve();};rows.set(s.name,page);
   Object.keys(s.components).forEach(cid=>{const c=s.components[cid],r=new EventEmitter();r.getId=()=>Number(cid);r.setValue=(i,k,v)=>{r.label=v;return Promise.resolve();};r.setProperty=(k,v)=>{r[k]=v;return Promise.resolve();};rows.set(c.name,r);});});
- a.rhmiApplication=new EventEmitter();Object.assign(a.rhmiApplication,{getByName:n=>rows.get(n)||null,mapEntryState:(uuid,state)=>{assert.strictEqual(loaded.length,9,'Entry offered before native pages loaded');mapped=state;return Promise.resolve();},openState:n=>{opened.push(n);return Promise.resolve();},closeState:n=>{closed.push(n);return Promise.resolve();},openEntryState:()=>Promise.resolve()});
+ a.rhmiApplication=new EventEmitter();Object.assign(a.rhmiApplication,{getByName:n=>rows.get(n)||null,mapEntryState:(uuid,state)=>{assert.strictEqual(loaded.length,10,'Entry offered before native pages loaded');mapped=state;return Promise.resolve();},openState:n=>{opened.push(n);return Promise.resolve();},closeState:n=>{closed.push(n);return Promise.resolve();},openEntryState:()=>Promise.resolve()});
  a.appDescription={application:{entryPoints:[{uuid:'test'}]}};a.getEntryPoints=()=>[{getDescription:()=>({uuid:'test',textId:'title',icon:'icon'}),init:()=>Promise.resolve(),entryPoint:{setText:()=>Promise.resolve(),setIcon:()=>Promise.resolve()},setAvailability:()=>Promise.resolve()}];
  return {rows,loaded,opened,closed,mapped:()=>mapped};
 }
@@ -39,19 +39,23 @@ function fixture(a){
  a.background=false;a.hide();assert(!a.mirror.running);a.background=true;a.mirror.running=true;a.guard.updateSpeed({speedVehicleCentreOfGravity:64});a.signals.changed();assert(!a.mirror.running);await a.shutdown();
  console.log('PASS background page changes retain output while movement and foreground-only mode stop it');
  const b=new App(),f=fixture(b);b._menuTimeout=35;park(b);await b.initUi();await turn();assert.strictEqual(f.mapped(),f.rows.get('ST_MaxModsHudMirror'));assert.strictEqual(videoConnections,0,'Native menus must not start an idle GPU renderer');
+ await b.chooseSettings();assert.strictEqual(b._page,'ST_MaxModsSettingsHub');
+ await b.press('settingsVideo',b._actions[48].fn);assert.strictEqual(b._page,'ST_MaxModsSettingsPicker');
+ await b.press('settingsBack',b._actions[1526].fn);assert.strictEqual(b._page,'ST_MaxModsSettingsHub');
+ await b.press('hubBack',b._actions[50].fn);assert.strictEqual(b._page,'ST_MaxModsHudMirror');
  await b.chooseDisplay();assert.strictEqual(b._page,'ST_MaxModsDisplaySettings');await b.openPage('ST_MaxModsDisplayPicker');
  await b.press('pickCluster',b._actions[1501].fn);assert.strictEqual(b.mirror.target,'map');assert.strictEqual(b._page,'ST_MaxModsDisplaySettings');assert.strictEqual(b.settings.value.target,'map');
- await b.chooseLayout();assert.strictEqual(b._page,'ST_MaxModsLayoutPicker');await b.press('pickFull',b._actions[1511].fn);assert.strictEqual(b.mirror.layout,'full');assert.strictEqual(f.loaded.length,9,'Click must not load resources behind a hidden surface');
+ await b.chooseLayout();assert.strictEqual(b._page,'ST_MaxModsLayoutPicker');await b.press('pickFull',b._actions[1511].fn);assert.strictEqual(b.mirror.layout,'full');assert.strictEqual(f.loaded.length,10,'Click must not load resources behind a hidden surface');
  await b.chooseDiagnostics();assert(/0 km/.test(f.rows.get('diagSpeed').label));b.readPhoneStats();await turn();await b.closePage('ST_MaxModsDiagnostics');
  await b.chooseGuide();assert(/BMW Wi-Fi/.test(f.rows.get('guideLine1').label));b.guideStep(1);assert(/COM/.test(f.rows.get('guideLine1').label));b.guideStep(-1);await b.closePage('ST_MaxModsConnectionGuide');
  console.log('PASS real native UI schema, preloaded resources, BMW selection actions, saved choices and guide navigation');
  const open=b.rhmiApplication.openState;b.mirror.running=true;
  b.rhmiApplication.openState=n=>n==='ST_MaxModsLayoutPicker'?Promise.reject(new Error('Refused')):open(n);
  assert.strictEqual(await b.chooseLayout(),false);assert.strictEqual(b._page,'ST_MaxModsHudMirror');assert(!b._navigating&&!b.video.visible&&b.mirror.running,'Failed menu opening lost the native controls or stopped HUD video');
- b.rhmiApplication.openState=n=>n==='ST_MaxModsSettingsPicker'?new Promise(()=>{}):open(n);
+ b.rhmiApplication.openState=n=>n==='ST_MaxModsSettingsHub'?new Promise(()=>{}):open(n);
  b.mirror.note('Streaming');const hanging=b.chooseSettings();await turn();await nativeTick(()=>{});assert.strictEqual(b.mirror.status,'Streaming','A hung menu held the vehicle signal queue');
  assert.strictEqual(await hanging,false);assert(!b._navigating&&b._page==='ST_MaxModsHudMirror');
- b.rhmiApplication.openState=open;await b.chooseSettings();assert.strictEqual(b._page,'ST_MaxModsSettingsPicker');
+ b.rhmiApplication.openState=open;await b.chooseSettings();assert.strictEqual(b._page,'ST_MaxModsSettingsHub');
  b.rhmiApplication.closeState=()=>Promise.reject(new Error('Close refused'));await b.closePage(b._page);assert(!b._navigating&&b._page==='ST_MaxModsHudMirror');
  let late;b.rhmiApplication.openState=n=>n==='ST_MaxModsLayoutPicker'?new Promise(r=>{late=r;}):open(n);
  const first=b.chooseLayout();await turn();await b.chooseGuide();late();await first;assert.strictEqual(b._page,'ST_MaxModsConnectionGuide','Late navigation replaced the newer page');
@@ -65,6 +69,7 @@ function fixture(a){
  c.mirror.pairing=phone;c.linked();assert.strictEqual(starts,1);assert.strictEqual(c.saved.value.resume,phone.resume);
  c.stopMirror();resumeInfo=phone;c.resumePhone();await turn();assert.strictEqual(starts,1);
  resumeInfo=Object.assign({},phone,{token:'c'.repeat(32)});c.resumePhone();await turn();assert.strictEqual(starts,2);
+ c.stopMirror();resumeInfo=Object.assign({},phone,{host:'10.1.2.9',token:'c'.repeat(32)});c.resumePhone();await turn();assert.strictEqual(c.saved.value.host,'10.1.2.9','Rediscovered address was not remembered');
  c.stopMirror();c.guard.invalidate();resumeInfo=Object.assign({},phone,{token:'d'.repeat(32)});c.resumePhone();await turn();assert.strictEqual(starts,2);assert(c._pendingSession);park(c);c.maybeStart();assert.strictEqual(starts,3);await c.shutdown();
  console.log('PASS linked one-Start, Stop suppression and genuine Park before pending start');
 })().catch(e=>{console.error(e);process.exitCode=1;});

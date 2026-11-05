@@ -14,7 +14,22 @@ try{
  const savedFile=path.join(dir,'phone.json'),saved=new SavedPhone(savedFile),pairing={host:'10.232.70.219',resume:'a'.repeat(32),token:'b'.repeat(32)};
  assert(saved.save(pairing));assert.strictEqual(fs.statSync(savedFile).mode&0o777,0o600);assert(!fs.readFileSync(savedFile,'utf8').includes(pairing.token));assert.deepStrictEqual(new SavedPhone(savedFile).value,{host:pairing.host,resume:pairing.resume});saved.forget();assert(!fs.existsSync(savedFile));
  const settingsFile=path.join(dir,'settings.json'),settings=new SavedSettings(settingsFile);settings.save({target:'idrive',layout:'full',background:false,hardware:false});assert.strictEqual(new SavedSettings(settingsFile).value.target,'idrive');assert.strictEqual(fs.statSync(settingsFile).mode&0o777,0o600);
+ // A labelled 8x8 YUV atlas proves crop offsets in all three planes. The
+ // complete supplied phone rectangle, including its last edge, must survive.
+ const modern=Object.assign({},dashboard,{viewport:()=>({x:0,y:0,w:1280,h:480})});
+ const cropped=new IdriveRenderer(modern,{directory:dir});cropped.connect();cropped.video({vw:8,vh:8,x:40,y:30,w:900,h:400});
+ const input=Buffer.from(Array.from({length:96},(_,n)=>n));
+ assert(cropped.frame(1,input,1,{x:2,y:2,w:4,h:4}));const firstFile=cropped.file;
+ const plane=fs.readFileSync(firstFile).slice(64+24,64+48);
+ assert(plane.equals(Buffer.from([18,19,20,21,26,27,28,29,34,35,36,37,42,43,44,45,73,74,81,82,77,78,85,86])),'Padding removal cropped phone pixels or mixed chroma');
+ assert.strictEqual(fs.statSync(firstFile).mode&0o777,0o600);cropped.set(1,{visible:true});assert.deepStrictEqual(surfaces[surfaces.length-1].rect,{x:0,y:0,w:1280,h:480},'Full-screen video was fitted inside the old app rectangle');
+ assert(cropped.frame(1,input,2,{x:2,y:2,w:4,h:4}));assert.strictEqual(cropped.file,firstFile,'Stable orientation reallocated the frame file');
+ assert(cropped.frame(1,input,3,{x:0,y:2,w:8,h:4}));assert(!fs.existsSync(firstFile));const rotated=cropped.file;const rotatedHeader=fs.readFileSync(rotated);assert.strictEqual(rotatedHeader.readUInt32LE(8),8);assert.strictEqual(rotatedHeader.readUInt32LE(12),4);
+ assert(cropped.frame(1,input,4));assert(!fs.existsSync(rotated));assert.strictEqual(cropped.w,8);assert.strictEqual(cropped.h,8,'Missing frame metadata reused stale rotation bounds');
+ for(const bounds of [{x:1,y:0,w:4,h:4},{x:6,y:0,w:4,h:4},{x:0,y:0,w:0,h:4},{x:-2,y:0,w:4,h:4}])assert.strictEqual(cropped.frame(1,input,5,bounds),false);
+ cropped.close();assert.strictEqual(fs.readdirSync(dir).filter(n=>n.indexOf('mgu-video-')===0).length,0);
  console.log('PASS iDrive I420 header/planes/slot publication, layout updates without per-frame UI rebuild, cleanup and private remembered pairing/display choices');
+ console.log('PASS full-screen viewport, exact Y/U/V phone bounds, rotation rebind, legacy-frame fallback and private RAM-file cleanup');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
 // Stopping while the video-only host is starting must not resurrect output.
 (async()=>{

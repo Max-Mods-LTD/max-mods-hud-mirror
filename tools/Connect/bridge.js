@@ -33,8 +33,9 @@ function serve(options){
    data+=chunk.toString('utf8');if(data.length>512||used){socket.destroy();return;}if(data.indexOf('\n')<0)return;used=true;
    try{
     const req=JSON.parse(data.trim());if(req.op!=='pair')throw new Error('Pairing lease required');
-    const rule=localRule(req.host,interfaces());if(!release())throw new Error('Previous QR lease is still being removed');run(rule);owner=socket;socket.setTimeout(0);
-    timer=setTimeout(()=>release(socket),o.testing?(o.leaseMs||120000):120000);socket.write('{"ok":true}\n');
+    const hosts=Array.isArray(req.hosts)?req.hosts:[req.host];if(!hosts.length||hosts.length>4)throw new Error('Unsupported address count');
+    const rules=hosts.map(host=>localRule(host,interfaces()));if(!release())throw new Error('Previous QR lease is still being removed');try{rules.forEach(rule=>run(rule));}catch(e){revoke();throw e;}owner=socket;socket.setTimeout(0);
+    timer=setTimeout(()=>release(socket),o.testing?(o.leaseMs||120000):120000);socket.write(JSON.stringify({ok:true,hosts})+'\n');
    }catch(_){socket.end('{"ok":false}\n');}
   });
   socket.on('close',()=>release(socket));

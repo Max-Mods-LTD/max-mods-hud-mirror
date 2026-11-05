@@ -39,8 +39,9 @@ class MirrorController extends EventEmitter {
         this.lastFrameAt = null; this.sessionAt = null; this.status = 'Stopped'; this.detail = ''; this.targetState = '';
         this.running = false; this.pairingBusy = false; this.dead = false;
         this.layout = o.layout === 'full' ? 'full' : 'compact';
-        this.target = o.target === 'map' ? 'map' : 'hud';
-        this.videoWidth = WIDTH; this.videoHeight = HEIGHT; this.videoFps = 30;
+        this.target = ['map','idrive'].indexOf(o.target)>=0?o.target:'hud';
+        this.makeCentral=o.makeCentral||null;this.makeGpu=o.makeGpu||null;this.canGpu=o.canGpu||(()=>false);this.hardware=true;this.starting=false;this.useGpu=false;this.releasing=null;
+        this.videoWidth = WIDTH; this.videoHeight = HEIGHT; this.videoFps = 30;this.receivedFps=0;this.lastIssue='';
         this.targetWidth = WIDTH; this.targetHeight = HEIGHT;
         this.streamAt = null; this.lastContactAt = null; this.latestPixels = null;
         this.lastRenderAt = null; this.frameTimes = []; this.captureState = 'waiting';
@@ -51,12 +52,20 @@ class MirrorController extends EventEmitter {
     videoStatus(text) { this.note(this.targetState && this.targetState !== 'shown' ? 'Display: ' + this.detail + '; ' + text : text); }
     toggleLayout() {
         this.layout = this.layout === 'compact' ? 'full' : 'compact';
+        if(this.running&&this.useGpu){const test=this.testing;this.stop('Changing layout');this.start(test);return;}
         if (this.renderer && this.layer !== null) this.renderer.set(this.layer, hudRect(this.layout, this.targetWidth, this.targetHeight, this.videoWidth, this.videoHeight));
         this.emit('change');
     }
-    toggleTarget() {
-        if (this.running) this.stop('Display changed. Select Start mirror.');
-        this.target = this.target === 'hud' ? 'map' : 'hud'; this.emit('change');
+    setTarget(target) {
+        if(['hud','map','idrive'].indexOf(target)<0)throw new Error('Unknown display');
+        if(target===this.target)return;
+        const resume=this.running||this.starting,test=this.testing;this.stop('Changing display');this.target=target;this.emit('change');if(resume)return this.start(test);
+    }
+    toggleTarget(){this.setTarget(this.target==='hud'?'map':this.target==='map'?'idrive':'hud');}
+    setHardware(on){
+        const resume=(this.running&&!this.testing)||this.starting;
+        this.hardware=!!on;this.gpuFailed=false;this.emit('change');
+        if(resume)return this.start(false);
     }
     pair(text) {
         this.stop('Pairing phone');
@@ -64,23 +73,41 @@ class MirrorController extends EventEmitter {
         this.pairing = null; this.pairingBusy = true;
         return this.phone.pair(text).then((p) => {
             if (this.dead || epoch !== this.generation) return;
-            this.pairing = p; this.note('Phone paired. Select Start mirror.');
+            this.pairing = p; this.note('Phone paired. Starting the selected display.');
         }).catch((e) => {
             if (epoch === this.generation) this.note(e.message);
         }).then(() => { if (epoch === this.generation) this.pairingBusy = false; });
     }
     start(test) {
         this.stop('Starting');
+        this.testing=!!test;
+        const epoch=this.generation;
+        if(this.releasing){this.starting=true;this.emit('change');return this.releasing.then(()=>{if(!this.dead&&epoch===this.generation)return this.prepare(test,epoch);});}
+        return this.prepare(test,epoch);
+    }
+    prepare(test,epoch) {
+        this.starting=false;
+        this.useGpu=!test&&this.target!=='idrive'&&this.hardware&&!this.gpuFailed&&!!this.makeGpu&&this.canGpu();
+        if(!test&&this.pairing&&this.guard.allowed()&&typeof this.phone.prepare==='function'){
+            this.starting=true;this.emit('change');
+            const prepare=this.phone.prepare(this.pairing,this.useGpu?'h264':'jpeg').catch(e=>{
+                if(this.dead||epoch!==this.generation||!this.useGpu)throw e;this.lastIssue='Hardware video: '+e.message;this.useGpu=false;this.gpuFailed=true;return this.phone.prepare(this.pairing,'jpeg');
+            });
+            return prepare.then(info=>{if(this.dead||epoch!==this.generation)return;this.starting=false;this.pairing=info;this._startPrepared(test);}).catch(e=>{if(epoch===this.generation){this.lastIssue=e.message;this.starting=false;this.stop(e.message);}});
+        }
+        return this._startPrepared(test);
+    }
+    _startPrepared(test) {
         if (this.dead) return;
         if (!this.guard.allowed()) { this.note(this.guard.reason()); return; }
         if (!test && !this.pairing) { this.note('Pair your phone first'); return; }
-        this.running = true; this.sessionAt = this.clock();
+        this.running = true; this.testing=!!test; this.sessionAt = this.clock();
         this.videoWidth = test ? WIDTH : this.pairing.width || WIDTH;
         this.videoHeight = test ? HEIGHT : this.pairing.height || HEIGHT;
         this.videoFps = test ? 30 : this.pairing.fps || 30;
         const epoch = this.generation;
-        const r = this.renderer = this.makeRenderer();
-        this.note(test ? 'Checking HUD display' : 'Connecting to phone');
+        const r = this.renderer = this.target==='idrive'&&this.makeCentral?this.makeCentral():this.useGpu?this.makeGpu(this.target,this.layout,this.pairing):this.makeRenderer();
+        this.note(test ? 'Checking display' : 'Connecting to phone');
         r.on('ready', () => {
             if (!this.running || epoch !== this.generation) return;
             // A reconnect must never replay the last phone image automatically.
@@ -90,7 +117,7 @@ class MirrorController extends EventEmitter {
             this.targetWidth = Number(match[1]); this.targetHeight = Number(match[2]);
             const geometry = hudRect(this.layout, this.targetWidth, this.targetHeight, this.videoWidth, this.videoHeight);
             const opts = Object.assign({ target: this.target, klass: 'content', visible: false, exclusive: false,
-                contend: false, guide_hold: false, opacity: 1 }, geometry);
+                contend: this.target === 'map', guide_hold: false, opacity: 1 }, geometry);
             this.layer = test ? r.image(Object.assign(opts, { iw: WIDTH, ih: HEIGHT, sampling: 'bilinear' })) :
                 r.video(Object.assign(opts, { vw: this.videoWidth, vh: this.videoHeight, fps: this.videoFps, level_bits: 0,
                     dirty_threshold: 0, pan_blocks: true, stall_ms: 2500 }));
@@ -99,17 +126,17 @@ class MirrorController extends EventEmitter {
                 r.pixels(this.layer, null, testPattern());
                 r.set(this.layer, { visible: true });
                 this.lastFrameAt = this.clock();
-                this.timer = setTimeout(() => this.stop('HUD test ended'), 8000);
+                this.timer = setTimeout(() => this.stop('Display test ended'), 8000);
             } else this.beginStream(epoch);
         });
         r.on('target', (name, state, holder, reason) => {
             if (name !== this.target || epoch !== this.generation || !this.running) return;
             this.targetState = state;
             this.detail = state + (reason ? ': ' + reason : '');
-            this.note(state === 'shown' ? (test ? 'HUD test active (8 seconds)' : 'Mirroring phone to HUD') : 'HUD: ' + this.detail);
+            this.note(state === 'shown' ? (test ? 'Display test active (8 seconds)' : 'Mirroring phone to selected display') : 'HUD: ' + this.detail);
         });
-        r.on('refused', (op, ref, reason) => { if (epoch === this.generation) this.stop('HUD renderer refused: ' + reason); });
-        r.on('disconnected', () => { if (epoch === this.generation) this.stop('HUD renderer disconnected'); });
+        r.on('refused', (op, ref, reason) => { if(epoch!==this.generation)return;this.lastIssue=reason;if(this.useGpu&&!this.gpuFailed){this.gpuFailed=true;this.stop('GPU unavailable; switching to JPEG');this.start(false);}else this.stop('Display refused: '+reason); });
+        r.on('disconnected', () => { if(epoch!==this.generation)return;this.lastIssue='Display renderer disconnected';if(this.useGpu&&!this.gpuFailed){this.gpuFailed=true;this.stop('GPU disconnected; switching to JPEG');this.start(false);}else this.stop('Display renderer disconnected'); });
         this.watchdog = setInterval(() => {
             if (!this.guard.allowed()) this.stop(this.guard.reason());
             else if (this.clock() - this.sessionAt > (test ? 10000 : 10 * 60 * 1000)) this.stop('Session ended. Start a new session.');
@@ -135,8 +162,11 @@ class MirrorController extends EventEmitter {
                 const now = this.clock(), previous = this.captureState;
                 this.lastContactAt = now; this.captureState = state;
                 if (this.healthySince !== null && now - this.healthySince >= 5000) this.retryCount = 0;
+                if(state==='active'&&this.renderer.captureAlive)this.renderer.captureAlive();
                 if (state !== 'active') {
-                    this.renderer.set(this.layer, { visible: false }); this.latestPixels = null;
+                    this.renderer.set(this.layer, { visible: false });
+                    if(!current())return;
+                    this.latestPixels = null;
                     this.pictureWaitAt = state === 'hidden' ? null : this.pictureWaitAt === null ? now : this.pictureWaitAt;
                     this.note(state === 'hidden' ? 'Shared app hidden. Return to it on the phone.' : 'Waiting for phone picture');
                 } else {
@@ -144,27 +174,32 @@ class MirrorController extends EventEmitter {
                     // A verified live capture may legitimately show the same image.
                     // Refresh the renderer's video deadline only on live records,
                     // never on a local timer or after a lost/paused phone stream.
-                    if (this.latestPixels && now - this.lastRenderAt >= 750) {
-                        this.renderer.frame(this.layer, this.latestPixels, this.latestFrameId); this.lastRenderAt = now;
+                    if (!this.useGpu && this.latestPixels && now - this.lastRenderAt >= 750) {
+                        this.renderer.frame(this.layer, this.latestPixels, this.latestFrameId);
+                        if(!current())return;
+                        this.lastRenderAt = now;
                     }
-                    if (this.lastFrameAt !== null && now - this.lastFrameAt > 1000) this.videoStatus('Capture active; waiting for next picture');
+                    if (this.lastFrameAt !== null && now - this.lastFrameAt > 1000) {this.receivedFps=0;this.videoStatus('Capture active; waiting for next picture');}
                 }
             },
             frame: (pixels, id) => {
                 if (!current()) return;
                 if (this.captureState !== 'active') return;
-                if (pixels.length !== this.videoWidth * this.videoHeight * 3 / 2) { this.stop('Invalid phone video frame'); return; }
+                if (!this.useGpu && pixels.length !== this.videoWidth * this.videoHeight * 3 / 2) { this.stop('Invalid phone video frame'); return; }
                 const now = this.clock();
                 if (this.healthySince === null) this.healthySince = now;
                 this.latestPixels = pixels; this.latestFrameId = id;
                 this.lastFrameAt = this.lastRenderAt = now; this.pictureWaitAt = null;
-                this.renderer.frame(this.layer, pixels, id); this.renderer.set(this.layer, { visible: true });
+                const renderer=this.renderer,accepted=renderer.frame(this.layer,pixels,id);
+                if(!current()||renderer!==this.renderer||accepted===false)return;
+                renderer.set(this.layer, { visible: true });
+                if(!current())return;
                 this.frameTimes.push(now);
                 while (this.frameTimes.length && now - this.frameTimes[0] > 2000) this.frameTimes.shift();
                 if (this.lastStatusAt === null || now - this.lastStatusAt >= 1000) {
                     const elapsed = Math.max(1, now - this.frameTimes[0]);
                     const fps = Math.round(Math.max(0, this.frameTimes.length - 1) * 1000 / elapsed);
-                    this.videoStatus('Receiving ' + fps + ' fps'); this.lastStatusAt = now;
+                    this.receivedFps=fps;this.videoStatus('Receiving ' + fps + ' fps ('+(this.useGpu?'GPU':'JPEG')+')'); this.lastStatusAt = now;
                 }
             },
             error: (e) => { if (epoch === this.generation && connection === this.connectionGeneration) this.recoverPhone(epoch, e); }
@@ -172,8 +207,10 @@ class MirrorController extends EventEmitter {
     }
     recoverPhone(epoch, error) {
         if (!this.running || epoch !== this.generation) return;
+        this.lastIssue=error.message;
         if (!this.guard.allowed()) { this.stop(this.guard.reason()); return; }
         if (!error.retryable || this.retryCount >= 3) { this.stop(error.message); return; }
+        if(this.useGpu){this.gpuFailed=true;this.start(false);return;}
         this.connectionGeneration++;
         this.phone.close(); this.renderer.set(this.layer, { visible: false });
         this.latestPixels = null; this.lastFrameAt = null; this.lastContactAt = null;
@@ -188,21 +225,24 @@ class MirrorController extends EventEmitter {
             this.phone = this.makePhone(); this.beginStream(epoch);
         }, [250,750,1500][attempt - 1]);
     }
-    checkPark() { if (this.running && !this.guard.allowed()) this.stop(this.guard.reason()); }
+    checkPark() { if ((this.running||this.starting) && !this.guard.allowed()) {this.lastIssue=this.guard.reason();this.stop(this.lastIssue);} }
     stop(reason) {
-        this.generation++; this.running = false; this.pairingBusy = false;
+        this.generation++; this.running = false; this.starting=false;this.pairingBusy = false;
         this.connectionGeneration++; clearTimeout(this.retryTimer); this.retryTimer = null; this.retryCount = 0; this.healthySince = null;
         clearTimeout(this.timer); clearInterval(this.watchdog); this.timer = this.watchdog = null;
         if (this.renderer) {
-            if (this.layer !== null) this.renderer.set(this.layer, { visible: false });
-            this.renderer.close(); this.renderer = null;
+            let released;try{if(this.layer!==null)this.renderer.set(this.layer,{visible:false});}catch(e){this.lastIssue='Closing display: '+e.message;}
+            try{released=this.renderer.close();}catch(e){this.lastIssue='Closing renderer: '+e.message;}this.renderer=null;
+            if(released&&typeof released.then==='function'){
+                const wait=this.releasing=Promise.resolve(released).catch(()=>{});
+                wait.then(()=>{if(this.releasing===wait)this.releasing=null;});
+            }
         }
         this.layer = null; this.lastFrameAt = null;
         this.targetState = ''; this.detail = '';
         this.latestPixels = null; this.lastContactAt = null; this.streamAt = null;
         this.pictureWaitAt = null; this.lastRenderAt = null; this.frameTimes = []; this.lastStatusAt = null;
-        this.captureState = 'waiting';
-        this.targetState = ''; this.detail = '';
+        this.captureState = 'waiting';this.receivedFps=0;
         this.phone.close(); this.phone = this.makePhone();
         this.note(reason || 'Stopped');
     }

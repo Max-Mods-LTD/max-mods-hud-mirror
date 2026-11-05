@@ -84,6 +84,10 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         const r = new Renderer(); const c = new MirrorController(guard(), { makeRenderer: () => r, makePhone: phoneFactory });
         c.start(true); r.emit('disconnected'); assert(!c.running); assert(r.closed); c.close();
     });
+    await test('a failing hide command cannot prevent renderer and phone cleanup', () => {
+        const r=new Renderer();let closes=0;const c=new MirrorController(guard(),{makeRenderer:()=>r,makePhone:()=>({close(){closes++;},stream(){}})});c.start(true);
+        r.set=()=>{throw Error('display socket failed');};const before=closes;c.stop();assert(r.closed&&!c.running);assert(closes>before);assert(/Closing display/.test(c.lastIssue));c.close();
+    });
     await test('wrong platform is rejected', () => {
         const r = new Renderer(); r.connect = function () { this.backend = 'id8'; this.targets = 'hud:353x203'; this.emit('ready'); };
         const c = new MirrorController(guard(), { makeRenderer: () => r, makePhone: phoneFactory });
@@ -174,14 +178,32 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         }
         assert(!c.running); assert.strictEqual(streams.length, 4); assert(r.closed); c.close();
     });
-    await test('cluster selection uses its map target, keeps guards and requires Start after a target change', () => {
-        const r=new Renderer(),c=new MirrorController(guard(),{makeRenderer:()=>r,makePhone:phoneFactory});
+    await test('switching destinations releases the old output before starting only the selected screen', () => {
+        const r=new Renderer(),central=new Renderer();central.connect=function(){this.backend='id7';this.targets='idrive:1440x480';this.emit('ready');};
+        const c=new MirrorController(guard(),{makeRenderer:()=>r,makeCentral:()=>{assert(r.closed);return central;},makePhone:phoneFactory});
         c.toggleTarget();assert.strictEqual(c.target,'map');c.start(true);assert.strictEqual(r.images[0].target,'map');
-        assert.strictEqual(r.images[0].exclusive,false);assert.strictEqual(r.images[0].contend,false);
-        c.toggleTarget();assert(!c.running&&r.closed);assert.strictEqual(c.target,'hud');c.close();
+        assert.strictEqual(r.images[0].exclusive,false);assert.strictEqual(r.images[0].contend,true);
+        c.toggleTarget();assert(c.running&&r.closed);assert.strictEqual(c.target,'idrive');assert.strictEqual(central.images[0].target,'idrive');c.close();assert(central.closed);
+    });
+    await test('Stop during codec setup cannot start a renderer or change the next session codec', async () => {
+        let reject,opened=0,prepared=0;const c=new MirrorController(guard(),{canGpu:()=>true,makeGpu:()=>{opened++;return new Renderer();},makePhone:()=>({close(){},prepare(){prepared++;return new Promise((r,j)=>reject=j);}})});
+        c.pairing={host:'10.0.0.1',token:'0'.repeat(32)};const pending=c.start(false);assert(c.starting);c.stop();reject(new Error('late failure'));await pending;
+        assert.strictEqual(opened,0);assert.strictEqual(prepared,1);assert(!c.running&&!c.starting);c.close();
+    });
+    await test('GPU refusal waits for its decoder to exit, then falls back once to JPEG', async () => {
+        let release,events,prepared=[];const gpu=new Renderer(),jpeg=new Renderer();gpu.close=function(){this.closed=true;return new Promise(r=>release=r);};
+        const c=new MirrorController(guard(),{canGpu:()=>true,makeGpu:()=>gpu,makeRenderer:()=>{assert(gpu.closed);return jpeg;},makePhone:()=>({close(){},prepare(p,codec){prepared.push(codec);return Promise.resolve(Object.assign({},p,{format:codec==='h264'?'h264-annexb':'jpeg'}));},stream(p,e){events=e;}})});
+        c.pairing={host:'10.0.0.1',token:'0'.repeat(32),width:768,height:432,fps:30};await c.start(false);events.state('active');gpu.frame=function(){this.emit('refused','frame',1,'decoder failed');return false;};
+        events.frame(Buffer.from([0,0,0,1,0x65]),1);assert(gpu.closed&&!c.running&&c.starting);assert.strictEqual(jpeg.videos.length,0);
+        release();await new Promise(r=>setImmediate(r));assert(c.running&&!c.useGpu&&c.gpuFailed);assert.deepStrictEqual(prepared,['h264','jpeg']);assert.strictEqual(jpeg.videos.length,1);c.close();
+    });
+    await test('changing compatibility mode applies immediately without another Start', async () => {
+        const renderers=[],prepared=[];const c=new MirrorController(guard(),{makeRenderer:()=>{const r=new Renderer();renderers.push(r);return r;},makePhone:()=>({close(){},prepare(p,codec){prepared.push(codec);return Promise.resolve(p);},stream(){}})});
+        c.pairing={host:'10.0.0.1',token:'0'.repeat(32),width:768,height:432,fps:30,format:'jpeg'};await c.start(false);await c.setHardware(false);
+        assert(c.running&&!c.hardware);assert(renderers[0].closed);assert.strictEqual(renderers.length,2);assert.deepStrictEqual(prepared,['jpeg','jpeg']);c.close();
     });
     await test('Smooth negotiates a bounded 60 fps canvas and preserves its full aspect in both sizes', async () => {
-        const p=new PhoneClient();p.request=()=>Promise.resolve({status:200,body:Buffer.from(JSON.stringify({token:'0'.repeat(32),protocol:3,width:576,height:324,fps:60,format:'jpeg'}))});
+        const p=new PhoneClient();p.request=()=>Promise.resolve({status:200,body:Buffer.from(JSON.stringify({token:'0'.repeat(32),protocol:4,width:576,height:324,fps:60,format:'jpeg'}))});
         const paired=await p.pair('10.0.0.1/12345678');assert.strictEqual(paired.fps,60);p.close();
         const r=new Renderer(),c=new MirrorController(guard(),{makeRenderer:()=>r,makePhone:phoneFactory});c.pairing=paired;c.start(false);
         assert.strictEqual(r.videos[0].vw,576);assert.strictEqual(r.videos[0].vh,324);assert.strictEqual(r.videos[0].fps,60);

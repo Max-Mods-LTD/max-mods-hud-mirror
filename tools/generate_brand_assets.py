@@ -6,9 +6,9 @@ from PIL import Image,ImageFont,ImageDraw
 root=Path(__file__).resolve().parents[1]
 out=root/'car/assets';out.mkdir(parents=True,exist_ok=True)
 def data(raw):return base64.b64encode(zlib.compress(raw,9)).decode()
-im=Image.open(root/'assets/max-mods-logo.png').convert('RGBA');im.thumbnail((320,55),Image.Resampling.LANCZOS)
+im=Image.open(root/'assets/max-mods-logo-stacked.png').convert('RGBA');im.thumbnail((420,180),Image.Resampling.LANCZOS)
 fonts={}
-for size in (16,20,24,32,40):
+for size in (16,20,22,24,26,28,30,32,36,40,48):
  f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',size)
  glyphs={}
  for n in range(32,127):
@@ -18,7 +18,9 @@ for size in (16,20,24,32,40):
  fonts[str(size)]=glyphs
 (out/'brand.json').write_text(json.dumps({'logo':{'w':im.width,'h':im.height,'data':data(im.tobytes())},'fonts':fonts},separators=(',',':'))+'\n')
 phone=root/'android/app/src/main/assets';phone.mkdir(parents=True,exist_ok=True)
-shutil.copy(root/'assets/max-mods-logo.png',phone/'max-mods-logo.png')
+phone_logo=Image.open(root/'assets/max-mods-logo-stacked.png').convert('RGBA')
+phone_logo.thumbnail((560,224),Image.Resampling.LANCZOS)
+phone_logo.save(phone/'max-mods-logo.png',optimize=True)
 license=root/'assets/DejaVu-LICENSE.txt'
 license.write_text('\n'.join(line.rstrip() for line in Path('/usr/share/doc/fonts-dejavu-core/copyright').read_text().splitlines())+'\n')
 print('Generated brand assets')

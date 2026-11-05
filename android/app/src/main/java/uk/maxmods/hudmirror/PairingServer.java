@@ -46,9 +46,21 @@ public final class PairingServer implements Closeable {
         server.bind(new InetSocketAddress(bind, port), 4);
         workers = new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(2));
     }
+    public interface VideoControl { String configure(String mode);void keyframe(); }
+    private volatile VideoControl videoControl;
+    private String resumeKey;
+    public void setResumeKey(String value){if(!value.matches("[a-f0-9]{32}"))throw new IllegalArgumentException("Invalid device key");resumeKey=value;}
+    public void setVideoControl(VideoControl value){videoControl=value;}
+    private byte[] info(){return ("{\"token\":\""+token+"\",\"resume\":\""+(resumeKey==null?token:resumeKey)+"\",\"protocol\":4,\"width\":"+frames.width()+",\"height\":"+frames.height()+",\"fps\":"+frames.fps()+",\"format\":\""+frames.format()+"\"}").getBytes(StandardCharsets.US_ASCII);}
+    private byte[] body(InputStream in,Map<String,String> headers,int min,int max)throws IOException{
+        if(headers.containsKey("transfer-encoding"))throw new IOException("Invalid body");
+        int length=Integer.parseInt(headers.get("content-length"));if(length<min||length>max)throw new IOException("Invalid body length");
+        byte[] bytes=new byte[length];for(int n=0;n<length;){int r=in.read(bytes,n,length-n);if(r<0)throw new EOFException();n+=r;}return bytes;
+    }
     public String getPin() { return pin; }
     public int getPort() { return server.getLocalPort(); }
     public synchronized boolean isPaired() { return pairedPeer != null; }
+    public synchronized boolean isStreaming(){return streamSocket!=null&&!streamSocket.isClosed();}
     public void start() {
         listener = new Thread(new Runnable() { public void run() {
             while (!closed) try {
@@ -95,7 +107,15 @@ public final class PairingServer implements Closeable {
             }
             if (closed || System.nanoTime() - started > 10L * 60L * 1000000000L) { reply(socket, 410, "", null); return; }
             String peer = socket.getInetAddress().getHostAddress();
-            if (start[0].equals("POST") && start[1].equals("/v3/pair")) {
+            if(h.containsKey("origin")){reply(socket,403,"",null);return;}
+            if(start[0].equals("POST")&&start[1].equals("/v4/resume")){
+                String credential=new String(body(in,h,32,32),StandardCharsets.US_ASCII);
+                synchronized(this){int n=attempts.containsKey("resume:"+peer)?attempts.get("resume:"+peer):0;
+                    if(resumeKey==null||!equal(resumeKey,credential)||pairedPeer!=null&&!pairedPeer.equals(peer)){attempts.put("resume:"+peer,n+1);reply(socket,403,"",null);return;}
+                    if(n>10){reply(socket,429,"",null);return;}pairedPeer=peer;}
+                reply(socket,200,"application/json",info());return;
+            }
+            if (start[0].equals("POST") && start[1].equals("/v4/pair")) {
                 if (h.containsKey("transfer-encoding") || !"8".equals(h.get("content-length"))) { reply(socket, 400, "", null); return; }
                 byte[] b = new byte[8];
                 for (int n = 0; n < 8;) { int r = in.read(b, n, 8 - n); if (r < 0) throw new EOFException(); n += r; }
@@ -108,14 +128,22 @@ public final class PairingServer implements Closeable {
                     if (!equal(pin, new String(b, StandardCharsets.US_ASCII))) { reply(socket, 403, "", null); return; }
                     pairedPeer = peer;
                 }
-                byte[] json = ("{\"token\":\"" + token + "\",\"protocol\":3,\"width\":" + frames.width() +
-                        ",\"height\":" + frames.height() + ",\"fps\":" + frames.fps() + ",\"format\":\"jpeg\"}").getBytes(StandardCharsets.US_ASCII);
-                reply(socket, 200, "application/json", json); return;
+                reply(socket,200,"application/json",info());return;
             }
             synchronized (this) {
                 if (!peer.equals(pairedPeer) || !equal("Bearer " + token, h.get("authorization"))) { reply(socket, 403, "", null); return; }
             }
-            if (!start[0].equals("GET") || !start[1].matches("/v3/stream\\?after=[0-9]{1,15}")) { reply(socket, 404, "", null); return; }
+            if(start[0].equals("POST")&&start[1].equals("/v4/prepare")){
+                String mode=new String(body(in,h,4,4),StandardCharsets.US_ASCII);
+                if(!mode.equals("jpeg")&&!mode.equals("h264")){reply(socket,400,"",null);return;}
+                String error=videoControl==null?(mode.equals("jpeg")?null:"Hardware codec unavailable"):videoControl.configure(mode);
+                if(error!=null){reply(socket,503,"text/plain",error.getBytes(StandardCharsets.UTF_8));return;}
+                reply(socket,200,"application/json",info());return;
+            }
+            if(start[0].equals("POST")&&start[1].equals("/v4/keyframe")){
+                body(in,h,1,1);if(videoControl!=null)videoControl.keyframe();reply(socket,200,"text/plain",new byte[]{49});return;
+            }
+            if (!start[0].equals("GET") || !start[1].matches("/v4/stream\\?after=[0-9]{1,15}")) { reply(socket, 404, "", null); return; }
             long after = Long.parseLong(start[1].substring(start[1].indexOf('=') + 1));
             stream(socket, after);
         } catch (IOException | RuntimeException ignored) {
@@ -131,7 +159,7 @@ public final class PairingServer implements Closeable {
         }
         try {
             OutputStream out = new BufferedOutputStream(socket.getOutputStream(), 65536);
-            out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/x-maxmods-hud-stream\r\nX-Mirror-Protocol: 3\r\n" +
+            out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/x-maxmods-hud-stream\r\nX-Mirror-Protocol: 4\r\n" +
                     "Cache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
             out.flush();
             long lastWrite = 0, nextPicture = 0; int lastState = -1;
@@ -147,7 +175,7 @@ public final class PairingServer implements Closeable {
                     writeRecord(socket, out, 1, snapshot.frame.id, snapshot.frame.compressed);
                     long ended = System.nanoTime();
                     transport.sent(snapshot.frame.compressed.length, ended - began);
-                    nextPicture = began + transport.intervalNs(snapshot.frame.compressed.length);
+                    nextPicture = began + (frames.format().equals("h264-annexb") ? (long)snapshot.frame.compressed.length*1000000000L/(3*1024*1024) : transport.intervalNs(snapshot.frame.compressed.length));
                     after = snapshot.frame.id; lastWrite = System.nanoTime(); lastState = 2;
                 } else if (state != lastState || now - lastWrite >= 250000000L) {
                     writeRecord(socket, out, state, after, null); lastWrite = System.nanoTime(); lastState = state;

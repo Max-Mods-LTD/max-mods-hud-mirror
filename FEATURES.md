@@ -1,19 +1,27 @@
-# Requested feature coverage — 0.4.0
+# Requested feature coverage — 0.5.0
 
-| Request | Delivered behaviour | Remaining check |
+| Request | Implementation | Physical check / limit |
 | --- | --- | --- |
-| Less pixelation | Native JPEG encoding and decoding; fixed capture resolution instead of quarter-size adaptive capture | Compare moving video on the car; native renderer motion packing still limits detail |
-| 30 / 60 fps | Sharp 30 and Smooth 60 targets; optional reversible Display60 renderer clock | Physical projector/cluster rate and RF performance |
-| Bluetooth / Android Auto sound | Existing working audio route remains in charge; lower video bandwidth and selectable coexistence modes | Actual simultaneous wireless playback |
-| Full phone image | Aspect-fit capture, letterbox, portrait/landscape resize; no crop/stretch | Physical edges/rotation |
-| Smaller HUD / speed and signs | Compact by default, lower HUD area reserved; Full screen toggle | Verify BMW speed, signs and warnings remain visible |
-| HUD or cluster | Select HUD or the cluster's central map target; never the full gauge panel | Cluster ownership and actual rendering |
-| Leave app page / use Android Auto | Background mirroring option on by default; Android capture foreground service; vehicle guards still run | Real iDrive lifecycle and AA network routing; force-stop still ends capture |
-| No manual IP typing | Car QR and local phone scanner; optional temporary QR network helper; manual fallback | Camera and BMW network on the device |
-| Proper Max Mods UI/logo | Official wordmark, dark red/grey dashboards, Connection/Display/Updates pages, standard native fallback | Touch/controller and physical screen scaling |
-| Changes visible in app | Current version and all current release notes in both apps, car Previous/Next | Physical HMI presentation |
-| Generic source name | MaxModsIdriveApps catalog/README branding and multi-component source | GitHub URL rename needs repository settings; current URL kept functional |
-| Video while driving / disclaimer checkbox | Video remains Park-only; no waiver checkbox or moving-video override | Not included |
+| Less lag / pixelation; use Waze GPU path | Automatic hardware AVC with a separate installed Waze decoder; no level rounding; JPEG fallback | New hardware path untested; shared packing/budget still apply |
+| 30 / 60 fps | Sharp/Smooth targets, hardware encoder negotiation, optional Display60 clock | Host link 29.0/57.5 fps; no measured car fps |
+| BMW Bluetooth / Android Auto audio | Existing audio route, low-bandwidth AVC or JPEG coexistence modes | Actual wireless audio/network coexistence |
+| Complete phone / smaller or Full picture | Aspect fit in both orientations; Compact / Full; saved layout | Check all edges and BMW speed/sign visibility |
+| HUD, cluster or iDrive | One renderer instance; release old output before new output; central I420/GPU video surface | Display ownership/physical presentation |
+| Cluster failed | Map slot contention now follows Waze | Check actual cluster slot and stock warnings |
+| Keep mirroring while on other pages / Android Auto | Background option and phone foreground service | Main-screen mirroring itself needs its app page; force-stop ends capture |
+| Press Start once | Trusted reconnect; phone Start auto-starts selected car display; Stop suppresses same-session restart | First pairing and Android consent still required; changed IP needs re-pair |
+| QR failed | Same-subnet address selection, up to four car addresses, longer helper startup, clear errors; manual fallback | Real camera, firewall and BMW network |
+| Vehicle signals stale | Changing powertrain CRC subscription plus real quiet-field subscription renewal | Still fails closed if real speed/P events stop |
+| Slow iDrive UI / fill display | Native GPU text/buttons, actual embed area sizing, no full-screen bitmap updates | Physical compositor/performance |
+| iDrive controller | Renderer CCU, native focus/action proxies, FrontCCU fallback | Actual rotary/press handling |
+| Bigger text and stacked logo | Transparent MAX over MODS logo, larger type in both apps | Phone retains its charcoal background per the corrected request |
+| Selected button feedback | Press color and green sharing-active phone button | Device appearance |
+| OEM dropdown box | Separate destination box and BMW-native display/layout/video menus | Physical HMI presentation |
+| Force close / Test display | Own-process reset; eight-second test on selected screen | Actual renderer release and projected pattern |
+| Extra reliability tools | OEM diagnostics, signal ages, last error, reconnect, cancellable Start and immediate codec switching | Host workflow checked |
+| Update notes inside app | Version and all current notes in both apps | Host packaging checked |
+| Generic source name | MaxModsIdriveApps catalog, multi-component source | GitHub repository URL rename remains pending |
+| Driving / waiver checkbox | Park checks retained; no moving-video override | Not included |
 
-Host tests exercise the implementations. They do not certify physical car or
-phone operation. See VALIDATION.md for exactly what passed and what needs testing.
+These implementations passed the host checks in VALIDATION.md. They are not
+a claim that the reported car faults have been physically verified as fixed.

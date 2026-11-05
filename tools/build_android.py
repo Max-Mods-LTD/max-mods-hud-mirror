@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the dependency-free prototype APK using Android SDK 35 and ECJ.
+"""Build the signed APK using Android SDK 35, ECJ and the vendored QR library.
 
 ANDROID_SDK_ROOT and ECJ_JAR name your SDK and Eclipse compiler.
 HUD_MIRROR_KEYSTORE may name your signing key (alias: hudmirror).
@@ -16,6 +16,9 @@ import xml.etree.ElementTree as ET
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build' / 'android'
 OUT.mkdir(parents=True, exist_ok=True)
+key = pathlib.Path(os.environ.get('HUD_MIRROR_KEYSTORE', str(OUT / 'prototype-signing.p12')))
+if not key.exists() and any((ROOT / 'downloads').glob('*.apk')):
+    raise SystemExit('Existing releases require the original update key. Set HUD_MIRROR_KEYSTORE; refusing to replace it.')
 sdk = pathlib.Path(os.environ['ANDROID_SDK_ROOT'])
 tools = sdk / 'build-tools' / '35.0.0'
 android = sdk / 'platforms' / 'android-35' / 'android.jar'
@@ -42,7 +45,6 @@ with zipfile.ZipFile(unsigned, 'a', zipfile.ZIP_DEFLATED) as z:
     z.write(OUT / 'classes.dex', 'classes.dex')
 aligned = OUT / 'aligned.apk'
 run(tools / 'zipalign', '-f', '4', unsigned, aligned)
-key = pathlib.Path(os.environ.get('HUD_MIRROR_KEYSTORE', str(OUT / 'prototype-signing.p12')))
 password = os.environ.get('HUD_MIRROR_STORE_PASSWORD', 'maxmods-prototype')
 if not key.exists():
     run('keytool', '-genkeypair', '-keystore', key, '-storepass', password, '-keypass', password,

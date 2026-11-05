@@ -7,7 +7,8 @@ const MAX_WIRE_BYTES = 600000, HEADER = 13;
 class StreamDecoder {
     constructor(events, options) {
         const o = options || {};
-        this.worker = new JpegWorker(o.width || WIDTH, o.height || HEIGHT);
+        this.h264=o.format==='h264-annexb';this.needIdr=true;this.lastKeyRequest=0;
+        this.worker = this.h264?null:new JpegWorker(o.width || WIDTH, o.height || HEIGHT);
         this.decode = o.decode || ((payload) => this.worker.decode(payload));
         this.events = events; this.buffer = Buffer.alloc(0); this.closed = false;
         this.lastWireId = 0; this.pending = null; this.decoding = false; this.epoch = 0;
@@ -26,10 +27,19 @@ class StreamDecoder {
                 if (this.buffer.length - offset < HEADER + length) break;
                 if (kind === 5) { this.fail(new Error('Phone capture stopped. Start sharing again.')); return; }
                 const state = kind === 3 ? 'waiting' : kind === 4 ? 'hidden' : 'active';
-                if (state !== 'active') { this.epoch++; this.pending = null; }
+                if (state !== 'active') { this.epoch++; this.pending = null; this.needIdr = true; }
                 this.events.state(state);
                 if (this.closed) return;
                 if (kind === 1) {
+                    if(this.h264){
+                        const payload=Buffer.from(this.buffer.slice(offset+HEADER,offset+HEADER+length));
+                        let idr=false;for(let n=0;n+4<payload.length;n++)if(payload[n]===0&&payload[n+1]===0&&(payload[n+2]===1?(payload[n+3]&31)===5:payload[n+2]===0&&payload[n+3]===1&&(payload[n+4]&31)===5)){idr=true;break;}
+                        if(this.lastWireId&&id!==this.lastWireId+1)this.needIdr=true;
+                        if(idr)this.needIdr=false;
+                        if(this.needIdr){if(Date.now()-this.lastKeyRequest>250&&this.events.gap){this.lastKeyRequest=Date.now();this.events.gap();}}
+                        else this.events.frame(payload,id);
+                        this.lastWireId=id;offset+=HEADER+length;continue;
+                    }
                     this.lastWireId = id;
                     // At most one in-flight decode and one latest waiting frame.
                     this.pending = { payload: Buffer.from(this.buffer.slice(offset + HEADER, offset + HEADER + length)), id, epoch: this.epoch };
@@ -50,6 +60,6 @@ class StreamDecoder {
             this.pump();
         }).catch((e) => { this.decoding = false; this.fail(e); });
     }
-    close() { this.closed = true; this.pending = null; this.buffer = Buffer.alloc(0); this.epoch++; this.worker.close(); }
+    close() { this.closed = true; this.pending = null; this.buffer = Buffer.alloc(0); this.epoch++; if(this.worker)this.worker.close(); }
 }
 module.exports = { StreamDecoder, WIDTH, HEIGHT, BYTES, MAX_WIRE_BYTES, HEADER };

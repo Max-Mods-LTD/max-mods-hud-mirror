@@ -13,6 +13,21 @@ public final class FrameStore {
     public static final int BYTES = WIDTH * HEIGHT * 3 / 2;
     public static final int MAX_WIRE_BYTES = 600000;
     private int width = WIDTH, height = HEIGHT, fps = FPS;
+    private String format="jpeg";
+    private final java.util.ArrayDeque<Frame> encoded=new java.util.ArrayDeque<Frame>();
+    private int encodedBytes;
+    public synchronized String format(){return format;}
+    public synchronized void setFormat(String value){
+        if(!"jpeg".equals(value)&&!"h264-annexb".equals(value))throw new IllegalArgumentException("Unknown codec");
+        format=value;frame=null;encoded.clear();encodedBytes=0;version++;notifyAll();
+    }
+    public synchronized void publishAvc(byte[] bytes){
+        if(bytes==null||bytes.length<4||bytes.length>MAX_WIRE_BYTES)throw new IllegalArgumentException("Invalid AVC frame");
+        if(stopped||!visible||!format.equals("h264-annexb"))return;
+        Frame next=new Frame(bytes.clone(),++counter,clock.nanoTime());encoded.addLast(next);encodedBytes+=bytes.length;
+        while(encoded.size()>12||encodedBytes>2*1024*1024)encodedBytes-=encoded.removeFirst().compressed.length;
+        frame=next;version++;notifyAll();
+    }
     public synchronized void configure(String profile) {
         if (counter != 0) throw new IllegalStateException("Restart sharing to change quality");
         boolean smooth = "smooth".equals(profile);
@@ -25,7 +40,7 @@ public final class FrameStore {
         if (jpeg == null || jpeg.length < 4 || jpeg.length > MAX_WIRE_BYTES ||
             (jpeg[0] & 255) != 255 || (jpeg[1] & 255) != 216) throw new IllegalArgumentException("Invalid JPEG frame");
         synchronized (this) {
-            if (stopped || !visible) return;
+            if (stopped || !visible || !format.equals("jpeg")) return;
             frame = new Frame(jpeg.clone(), ++counter, clock.nanoTime()); version++; notifyAll();
         }
     }
@@ -54,15 +69,17 @@ public final class FrameStore {
     public synchronized void heartbeat() { if (!stopped) { alive = true; aliveAt = clock.nanoTime(); } }
     public synchronized void visible(boolean value) {
         if (visible == value || stopped) return;
-        visible = value; frame = null; version++; notifyAll();
+        visible = value; frame = null; encoded.clear();encodedBytes=0;version++; notifyAll();
     }
     public synchronized Snapshot snapshot(long after) {
         long age = clock.nanoTime() - aliveAt;
         String state = stopped ? "stopped" : !alive || age < 0 || age > LIVENESS_MS * 1000000L ? "stalled" : !visible ? "hidden" : frame == null ? "waiting" : "active";
-        return new Snapshot(state, state.equals("active") && frame.id > after ? frame : null, version);
+        Frame next=state.equals("active")&&frame.id>after?frame:null;
+        if(next!=null&&format.equals("h264-annexb")){for(Frame candidate:encoded)if(candidate.id>after){next=candidate;break;}}
+        return new Snapshot(state,next,version);
     }
     public synchronized void awaitChange(long seen, long ms) throws InterruptedException {
         if (!stopped && seen == version && ms > 0) wait(ms);
     }
-    public synchronized void clear() { stopped = true; frame = null; alive = false; version++; notifyAll(); }
+    public synchronized void clear() { stopped = true; frame = null; encoded.clear();encodedBytes=0;alive = false; version++; notifyAll(); }
 }

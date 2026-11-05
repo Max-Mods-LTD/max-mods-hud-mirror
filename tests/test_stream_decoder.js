@@ -26,6 +26,14 @@ async function until(fn){for(let i=0;i<400;i++){if(fn())return;await delay(5);}t
  hidden.push(record(2,1));await delay(5);assert.deepStrictEqual(late,[]);
  hidden.push(record(1,2,jpeg));pending.shift()(pixels);await until(()=>late.length===1);assert.deepStrictEqual(late,[2]);hidden.close();
  console.log('PASS hiding content cancels an in-flight picture and requires a new capture');
+ const avcSeen=[],avcStates=[];let requested=0;
+ const avc=new StreamDecoder({frame:(p,id)=>avcSeen.push(id),state:s=>avcStates.push(s),gap:()=>requested++,error:e=>{throw e;}},{format:'h264-annexb'});
+ const idr=Buffer.from([0,0,0,1,0x67,1,0,0,0,1,0x65,2]),delta=Buffer.from([0,0,1,0x41,3]);
+ assert.strictEqual(avc.worker,null,'AVC must not start a JPEG decoder');avc.push(record(1,1,delta));assert.strictEqual(requested,1);assert.deepStrictEqual(avcSeen,[]);
+ avc.push(record(1,2,idr));for(let n=3;n<=70;n++)avc.push(record(1,n,delta));assert.strictEqual(avcSeen.length,69,'AVC reference pictures were dropped');
+ avc.push(record(1,72,delta));assert.strictEqual(avcSeen.length,69,'Sequence gap must wait for an IDR');avc.push(record(1,73,idr));assert.strictEqual(avcSeen[69],73);
+ avc.push(record(4,73));avc.push(record(1,74,delta));assert.strictEqual(avcSeen.length,70,'Hidden content must invalidate decoder references');avc.push(record(1,75,idr));assert.strictEqual(avcSeen[70],75);avc.close();
+ console.log('PASS ordered AVC references, missing-frame keyframe requests, hidden-content reset and no JPEG worker in GPU mode');
  for(const bad of [record(0,0),record(1,0,jpeg),record(2,1,Buffer.from('x')),(()=>{const h=Buffer.alloc(13);h.writeUInt32LE(MAX_WIRE_BYTES+1);h[4]=1;return h;})()]){
   let refused;const x=new StreamDecoder({frame:()=>{throw new Error('bad frame delivered');},state:()=>{},error:e=>{refused=e;}});x.push(bad);assert(refused&&x.closed);
  }

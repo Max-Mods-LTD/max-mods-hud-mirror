@@ -95,6 +95,7 @@ public class PhoneServerHarness {
         if(args.length>0&&args[0].equals("smooth"))store.configure("smooth");
         TransportPolicy streamPolicy=new TransportPolicy();streamPolicy.setProfile(store.fps()==60?"smooth":"sharp");
         PairingServer server = new PairingServer(InetAddress.getByName("127.0.0.1"), 8476, store, streamPolicy);
+        server.setResumeKey("0123456789abcdef0123456789abcdef");
         final byte[] pixels=java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("tests/fixtures/frame-"+store.width()+"x"+store.height()+".jpg"));
         store.heartbeat(); store.publishJpeg(pixels); server.start();
         ScheduledExecutorService capture = Executors.newScheduledThreadPool(2);

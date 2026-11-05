@@ -8,14 +8,17 @@ function privateAddress(ip) { try { return parsePairing(ip + '/12345678').host; 
 function addresses() {
     const out = [], interfaces = os.networkInterfaces();
     Object.keys(interfaces).sort((a,b) => Number(/wl|wif|ap/i.test(b)) - Number(/wl|wif|ap/i.test(a))).forEach((name) => {
-        interfaces[name].forEach((v) => { if (!v.internal && v.family === 'IPv4' && privateAddress(v.address) && out.indexOf(v.address)<0) out.push(v.address); });
+        interfaces[name].forEach((v) => {
+            const mask=String(v.netmask||'').split('.').map(Number),bits=mask.map(n=>n.toString(2).padStart(8,'0')).join('');
+            if (!v.internal && v.family === 'IPv4' && /^1{8,30}0+$/.test(bits) && privateAddress(v.address) && out.indexOf(v.address)<0) out.push(v.address);
+        });
     }); return out;
 }
 class QrPairing extends EventEmitter {
     constructor(mirror, options) { super(); this.mirror=mirror; this.options=options||{}; this.server=null; this.url=null; this.sockets=new Set(); this.epoch=0; }
     start() {
         this.close();
-        const host=this.options.host || addresses()[0];
+        const hosts=this.options.hosts||(this.options.host?[this.options.host]:addresses().slice(0,4)),host=hosts[0];
         if (!host) return Promise.reject(new Error('No car Wi-Fi address. Use manual pairing.'));
         if (!this.mirror.guard.allowed()) return Promise.reject(new Error(this.mirror.guard.reason()));
         const key=crypto.randomBytes(24).toString('hex'), epoch=this.epoch;
@@ -40,30 +43,31 @@ class QrPairing extends EventEmitter {
                     const address=this.options.allowLoopback?this.options.phoneHost:peer;
                     this.mirror.pair(address+'/'+body).then(()=>{
                         if(epoch!==this.epoch){reply(410,'Pairing expired');return;}
-                        if(!this.mirror.pairing){reply(502,'Phone pairing failed. Try a new QR code.');this.close();return;}
+                        if(!this.mirror.pairing){reply(502,this.mirror.status||'Phone pairing failed. Update both apps to 0.5.0.');setTimeout(()=>this.close(),100);return;}
                         reply(200,'Paired');this.emit('paired');setTimeout(()=>{if(epoch===this.epoch)this.close();},100);
-                    }).catch(()=>{reply(502,'Pairing failed');this.close();});
+                    }).catch(()=>{reply(502,'Pairing failed');setTimeout(()=>this.close(),100);});
                 });
             });
             server.timeout=3500;server.maxHeadersCount=12;
             server.on('connection',(s)=>{if(this.sockets.size>=4){s.destroy();return;}this.sockets.add(s);s.on('close',()=>this.sockets.delete(s));});
             server.on('error',(e)=>{this.close();reject(new Error('QR connection unavailable: '+e.message+'. Use manual pairing.'));});
-            server.listen(port,host,()=>this.openBridge(host).then(()=>{
+            server.listen(port,this.options.allowLoopback?host:'0.0.0.0',()=>this.openBridge(hosts).then(()=>{
                 if(epoch!==this.epoch){reject(new Error('QR pairing cancelled'));return;}
-                this.url='maxmods://pair?v=1&host='+host+'&port='+server.address().port+'&key='+key;
+                if(!this.options.skipBridge&&!this.bridgeAvailable){this.close();reject(new Error('QR helper unavailable. Update Max Mods Connect to 0.2.0, or use Pair manually.'));return;}
+                this.url='maxmods://pair?v=2&host='+host+'&hosts='+hosts.join(',')+'&port='+server.address().port+'&key='+key;
                 this.timer=setTimeout(()=>{this.close();this.emit('expired');},120000);
                 this.emit('change');resolve(this.url);
             }));
         });
     }
-    openBridge(host) {
+    openBridge(hosts) {
         if(this.options.skipBridge)return Promise.resolve();
         return new Promise(resolve=>{
             let finished=false,data='';
-            const socket=this.bridge=net.createConnection('/run/maxmods-connect/pair.sock');
+            const socket=this.bridge=net.createConnection(this.options.bridgePath||'/run/maxmods-connect/pair.sock');
             const done=ok=>{if(finished)return;finished=true;clearTimeout(deadline);this.bridgeAvailable=ok;if(!ok)socket.destroy();resolve();};
-            const deadline=setTimeout(()=>done(false),1200);
-            socket.on('connect',()=>socket.write(JSON.stringify({op:'pair',host})+'\n'));
+            const deadline=setTimeout(()=>done(false),10000);
+            socket.on('connect',()=>socket.write(JSON.stringify({op:'pair',host:hosts[0],hosts})+'\n'));
             socket.on('error',()=>done(false));socket.on('close',()=>{
                 if(finished&&this.bridgeAvailable&&this.bridge===socket&&this.url)this.close();
                 else done(false);

@@ -1,84 +1,85 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
-const {RenderClient,imageOp}=require('./mgu_render_client.js');
-const {BrandCanvas}=require('./brand_canvas.js');
-const qr=require('./qrcode.js');
-const release=require('./release_notes.js');
-const C={bg:'#0c0d10',panel:'#181a20',muted:'#999da8',line:'#2c2f38',red:'#c8121b',green:'#8bccab'};
-class Dashboard {
+const {RenderClient}=require('./mgu_render_client.js');
+const {GpuCanvas,kit}=require('./gpu_canvas.js');
+const qr=require('./qrcode.js'),release=require('./release_notes.js');
+const C={bg:'#0c0d10',panel:'#1b1d23',muted:'#b5bac5',line:'#353943',red:'#c8121b',green:'#55c38e'};
+class Dashboard{
  constructor(app,log){
-  this.app=app;this.tab=0;this.focus=0;this.visible=false;this.items=[];this.lastCcu=null;this.lastKey='';
-  this.gpu=new RenderClient('maxmods_hud_mirror',log,{mode:'embed'});
+  this.app=app;this.tab=0;this.focus=0;this.visible=false;this.items=[];this.lastCcu=null;this.front=null;this.proxyDriven=false;this.lastKey='';this.width=1440;this.height=480;this.surface=null;this.controls=false;this.lastSent=0;
+  this.gpu=new RenderClient('maxmods_hud_mirror',log,{mode:'embed',kit});
   this.gpu.on('ready',(screen,info)=>{
-   if(!info||!info.pixmap||info.modes.indexOf('embed')<0)return;
-   this.info=info;const b=info.embedBox,scale=Math.min(b.w/1024,b.h/480);
-   this.gpu.mode('embed');this.gpu.place({x:b.x,y:b.y,w:b.w,h:b.h,scale,ox:(b.w-1024*scale)/2,oy:(b.h-480*scale)/2});
-   this.gpu.pixmap(1,1024,480,'rgba','linear');this.gpu.fps(4);this.lastKey='';this.show(this.visible);this.render(true);
+   if(!info||info.modes.indexOf('embed')<0)return;this.info=info;const b=info.embedBox,scale=b.h/this.height;this.width=b.w/scale;
+   this.gpu.mode('embed');this.gpu.place({x:b.x,y:b.y,w:b.w,h:b.h,scale,ox:0,oy:0});this.gpu.fps(60);this.lastKey='';this.show(this.visible);this.render(true);
   });
-  this.gpu.on('touch',(phase,x,y)=>{if(!this.visible||phase!=='up')return;const i=this.items.findIndex(b=>x>=b.x&&y>=b.y&&x<b.x+b.w&&y<b.y+b.h);if(i>=0){this.focus=i;this.activate();}});
-  this.gpu.on('ccu',(e)=>{
-   if(!this.visible)return;const old=this.lastCcu;this.lastCcu=e;if(!old)return;
-   const d=((e.knob-old.knob+0x18000)%0x10000)-0x8000;
-   if(e.knob!==65535&&old.knob!==65535&&Math.abs(d)<=12&&d){this.focus=Math.max(0,Math.min(this.items.length-1,this.focus+d));this.render(true);}
-   if((e.press===1||e.press===2)&&e.press!==old.press&&e.seq!==old.seq)this.activate();
-  });
-  this.gpu.on('tick',()=>{if(this.visible)this.sendFrame();});
-  this.timer=setInterval(()=>{if(this.visible){this.render();this.sendFrame();}},1000);
+  this.gpu.on('touch',(phase,x,y)=>{if(!this.visible||phase!=='up')return;if(this.surface&&!this.controls){this.controls=true;this.render(true);return;}
+   const i=this.items.findIndex(b=>x>=b.x&&y>=b.y&&x<b.x+b.w&&y<b.y+b.h);if(i>=0){this.focus=i;this.activate();}});
+  this.gpu.on('ccu',e=>{if(!this.visible)return;const old=this.lastCcu;this.lastCcu=e;if(old)this.dial(old.knob,e.knob,(e.press===1||e.press===2)&&e.press!==old.press&&e.seq!==old.seq);});
+  this.timer=setInterval(()=>{if(this.visible&&Date.now()-this.lastSent>1000)this.sendFrame();},500);
  }
  connect(){this.gpu.connect();}
- show(on){this.visible=!!on;this.gpu.show(this.visible);this.gpu.grab(this.visible&&!!(this.info&&this.info.controller));if(!on)this.lastCcu=null;else this.render(true);}
- activate(){const item=this.items[this.focus];if(item)this.app.press('drawn'+item.id,()=>item.fn());this.render(true);}
- button(c,id,label,x,y,w,fn,primary){
-  const i=this.items.length,focus=i===this.focus;this.items.push({id,x,y,w,h:51,fn});
-  c.rect(x,y,w,51,focus?'#ffffff':primary?C.red:C.panel).text(label,x+17,y+9,20,focus?'#101115':'#ffffff',w-30);
+ show(on){this.visible=!!on;this.gpu.show(this.visible);this.gpu.grab(this.visible&&!!(this.info&&this.info.controller));if(!on){this.lastCcu=null;this.front=null;}else this.render(true);}
+ frontCcu(s){
+  const old=this.front,op=s&&s.frontRotaryEncoderOperation,push=s&&s.frontRotaryEncoderPushButton,seq=s&&s.frontSequenceNumberOperatingElement;
+  const pressed=['DREHGEBER_KURZ_GEDRUECKT','DREHGEBER_LANG_GEDRUECKT',1,2].indexOf(push)>=0;
+  this.front={knob:typeof op==='number'&&op!==65535?op:old?old.knob:65535,pressed,seq};
+  if(old&&this.visible&&!(this.info&&this.info.controller)&&!this.proxyDriven)this.dial(old.knob,this.front.knob,pressed&&(!old.pressed||seq!==old.seq));
+ }
+ dial(from,to,pushed){if(!this.visible)return;const d=((to-from+0x18000)%0x10000)-0x8000;
+  if(this.surface&&!this.controls&&(pushed||d&&Math.abs(d)<=12)){this.controls=true;this.render(true);return;}
+  if(to!==65535&&from!==65535&&Math.abs(d)<=12&&d){this.focus=Math.max(0,Math.min(this.items.length-1,this.focus+d));this.render(true);}if(pushed)this.activate();
+ }
+ proxyFocus(index,on){if(on&&this.visible){this.focus=index;this.render(true);}}
+ proxyPress(index){this.proxyDriven=true;this.focus=index;this.activate();}
+ activate(){if(this.surface&&!this.controls){this.controls=true;this.render(true);return;}const item=this.items[this.focus];if(item)this.app.press('action-'+item.id,()=>item.fn());this.render(true);}
+ setSurface(surface){if(!surface||!this.surface||surface.id!==this.surface.id)this.controls=false;this.surface=surface;this.render(true);}
+ button(c,id,label,x,y,w,fn,selected){const index=this.items.length,focus=index===this.focus;this.items.push({id,label,x,y,w,h:62,fn});
+  c.rect(x,y,w,62,focus?'#ffffff':selected?C.red:C.panel).text(label,x+18,y+10,28,focus?'#101115':'#ffffff',w-32);
  }
  frame(){
-  const a=this.app,m=a.mirror,c=new BrandCanvas();this.items=[];
-  c.rect(0,0,1024,480,C.bg).logo(221,18).text('HUD MIRROR',224,67,16,C.muted);
-  c.rect(0,0,192,480,'#111216').rect(191,0,1,480,C.line);
-  ['Connection','Display','Updates'].forEach((t,i)=>this.button(c,'tab'+i,t,12,118+i*65,168,()=>{this.tab=i;this.focus=i;},this.tab===i));
-  c.text('MAX MODS',20,29,20,'#ffffff').text('iDrive Apps',20,59,16,C.muted).text('v'+release.version,20,438,16,C.muted);
-  const blocked=a.guard.reason();c.text(blocked?'Park required':'Park confirmed',790,31,16,blocked?'#e4ba8f':C.green,210);
+  const a=this.app,m=a.mirror,w=this.width,h=this.height,c=new GpuCanvas(w,h);this.items=[];c.rect(0,0,w,h,C.bg);
+  if(this.surface&&this.surface.visible){const s=this.surface,b=s.rect||{x:0,y:0,w,h};if(s.kind==='video')c.video(s.id,b.x,b.y,b.w,b.h);else c.image(s.id,b.x,b.y,b.w,b.h);
+   if(this.controls){const y=h-78;c.rect(0,y,w,78,C.bg);this.button(c,'stop','Stop mirroring',24,y+8,310,()=>a.stopMirror(),true);this.button(c,'hidecontrols','Hide controls',352,y+8,280,()=>{this.controls=false;this.render(true);});this.button(c,'force','Force close',w-285,y+8,260,()=>a.forceClose());}return c;
+  }
+  const nav=250,x=282,right=w-30,body=right-x;
+  c.rect(0,0,nav,h,'#14151a').rect(nav,0,1,h,C.line).logo(16,17,218,94);
+  c.text('iDrive Apps',23,118,26,C.muted).text('v'+release.version,23,h-42,22,C.muted);
+  ['Connection','Display','Updates'].forEach((t,i)=>this.button(c,'tab'+i,t,14,172+i*76,222,()=>{this.tab=i;this.focus=i;},this.tab===i));
+  c.text('HUD Mirror',x,18,40,'#ffffff');const blocked=a.guard.reason();c.text(blocked?'Park required':'Park confirmed',right-270,28,24,blocked?'#f0b57c':C.green,270);
+  this.button(c,'force','Force close',right-238,h-70,238,()=>a.forceClose());
   if(this.tab===0){
    if(a.qr.url){
-    c.text('Connect your phone',224,111,32,'#ffffff');
-    const q=qr(0,'M');q.addData(a.qr.url);q.make();const count=q.getModuleCount(),cell=Math.floor(260/(count+8)),side=(count+8)*cell,x=233,y=172;
-    c.rect(x,y,side,side,'#ffffff');for(let r=0;r<count;r++)for(let col=0;col<count;col++)if(q.isDark(r,col))c.rect(x+(col+4)*cell,y+(r+4)*cell,cell,cell,'#000000');
-    c.text('1  Start sharing on your phone',540,180,20,'#ffffff',460).text('2  Tap Scan car QR',540,219,20,'#ffffff',460)
-     .text('Same BMW Wi-Fi. Code expires in 2 minutes.',540,265,16,C.muted,450).text('QR times out? Install Max Mods Connect in the Store.',540,294,16,C.muted,450);
-    this.button(c,'cancelqr','Cancel',540,348,180,()=>a.qr.close());this.button(c,'manual','Enter manually',735,348,250,()=>a.pairPhone());
+    c.text('Scan to connect',x,94,36,'#ffffff');const code=qr(0,'M');code.addData(a.qr.url);code.make();const count=code.getModuleCount(),cell=Math.max(2,Math.floor(274/(count+8))),side=(count+8)*cell;
+    c.rect(x,164,side,side,'#ffffff');for(let r=0;r<count;r++)for(let col=0;col<count;col++)if(code.isDark(r,col))c.rect(x+(col+4)*cell,164+(r+4)*cell,cell,cell,'#000000');
+    const tx=x+side+34,tw=right-tx;c.text('1. Start sharing on the phone',tx,168,28,'#ffffff',tw).text('2. Tap Scan car QR',tx,214,28,'#ffffff',tw).text('Mirroring starts after pairing.',tx,270,24,C.green,tw);
+    const bw=(tw-16)/2;this.button(c,'cancelqr','Cancel',tx,332,bw,()=>a.qr.close());this.button(c,'manual','Pair manually',tx+bw+16,332,bw,()=>a.pairPhone());
    }else{
-    c.text(m.running?'Your phone. Your display.':'Ready when you are.',224,112,32,'#ffffff');
-    c.text(m.status,224,164,20,C.muted,770);
-    c.rect(224,215,760,92,C.panel).rect(224,215,4,92,C.red);
-    c.text(m.pairing?'PHONE CONNECTED':'CONNECT YOUR PHONE',247,230,16,C.muted)
-     .text(m.pairing?'Paired over BMW Wi-Fi':'Start sharing, then scan the car QR',247,257,24,'#ffffff',720);
-    this.button(c,'start',m.running?'Stop mirror':'Start mirror',224,333,272,()=>m.running?m.stop():m.start(false),true);
-    this.button(c,'qr','Pair with QR',514,333,228,()=>a.pairQr());
-    this.button(c,'manual','Pair manually',760,333,224,()=>a.pairPhone());
-    c.text('Sound stays on BMW Bluetooth or Android Auto.',224,414,16,C.muted,765);
+    c.text(m.starting?'Connecting to your phone...':m.running?'Mirroring is active':'Connect once. Start in one place.',x,95,36,'#ffffff',body);
+    c.lines(m.status,x,145,24,C.muted,body,2);c.rect(x,217,body,84,C.panel).rect(x,217,5,84,C.red);
+    c.text(m.pairing?'PHONE PAIRED':'PHONE NOT PAIRED',x+23,224,22,C.muted).text(m.pairing?'Start on the phone to mirror automatically':'Pair with QR or enter the phone code',x+23,254,28,'#ffffff',body-46);
+    const gap=16,bw=(body-2*gap)/3;this.button(c,'start',m.starting?'Cancel start':m.running?'Stop mirror':'Start mirror',x,327,bw,()=>m.running||m.starting?a.stopMirror():a.startMirror(false),true);
+    this.button(c,'qr','Pair with QR',x+bw+gap,327,bw,()=>a.pairQr());this.button(c,'manual','Pair manually',x+2*(bw+gap),327,bw,()=>a.pairPhone());
+    c.text('Sound uses your existing BMW Bluetooth / Android Auto route.',x,410,24,C.muted,body-260);
    }
   }else if(this.tab===1){
-   c.text('Make it yours.',224,112,32,'#ffffff');
-   this.button(c,'target',m.target==='hud'?'Display: Head-up display':'Display: Instrument cluster',224,179,760,()=>m.toggleTarget());
-   this.button(c,'layout',m.layout==='compact'?'Size: Compact - space below for BMW':'Size: Full screen',224,243,760,()=>m.toggleLayout());
-   this.button(c,'background','Keep mirroring on other pages: '+(a.background?'On':'Off'),224,307,760,()=>a.toggleBackground());
-   this.button(c,'test','Test selected display',224,371,760,()=>m.start(true));
-   c.text('Whole phone picture fits. Vehicle must remain stationary in P.',224,441,16,C.muted,770);
+   c.text('Display destination',x,95,36,'#ffffff');c.rect(x,156,body,104,C.panel).text('ONE SCREEN AT A TIME',x+22,168,22,C.muted);
+   this.button(c,'picker',(m.target==='map'?'Instrument cluster':m.target==='idrive'?'iDrive screen':'Head-up display')+'  >',x+16,198,body-32,()=>a.chooseDisplay());
+   this.button(c,'layout',(m.layout==='compact'?'Picture: Compact':'Picture: Full screen')+'  >',x,282,body,()=>a.chooseLayout());
+   this.button(c,'settings','Video and background options  >',x,357,body-260,()=>a.chooseSettings());
+   this.button(c,'test','Test display',right-260,92,260,()=>a.startMirror(true));
   }else{
-   c.text("What's new",224,112,32,'#ffffff').text('Car '+release.version+' / Android '+release.phoneVersion,224,163,20,C.muted);
-   const lines=release.lines[a._releaseIndex];c.rect(224,214,760,125,C.panel);
-   c.text(String(a._releaseIndex+1).padStart(2,'0')+' / '+release.lines.length,244,226,16,'#de5e64');
-   lines.forEach((t,i)=>c.text(t,244,260+i*31,20,'#ffffff',716));
-   this.button(c,'prev','Previous',224,363,250,()=>a.releaseNote(-1));this.button(c,'next','Next change',491,363,250,()=>a.releaseNote(1),true);
-   c.text('Received fps measures the link. Projector fps needs a car check.',224,441,16,C.muted,770);
+   c.text("What's new in "+release.version,x,95,36,'#ffffff');const lines=release.lines[a._releaseIndex];
+   c.rect(x,166,body,164,C.panel).text('CHANGE '+(a._releaseIndex+1)+' OF '+release.lines.length,x+22,178,22,C.red);
+   c.lines(lines.join(' '),x+22,210,28,'#ffffff',body-44,3);
+   this.button(c,'previous','Previous',x,335,250,()=>a.releaseNote(-1));this.button(c,'next','Next change',x+270,335,275,()=>a.releaseNote(1),true);
   }
   return c;
  }
- render(force){if(!this.visible||!this.info)return;const a=this.app,key=JSON.stringify([this.tab,this.focus,a.mirror.status,a.mirror.running,!!a.mirror.pairing,a.mirror.layout,a.mirror.target,a.background,a.guard.reason(),a.qr.url,a._releaseIndex]);
-  if(!force&&key===this.lastKey)return;this.lastKey=key;const c=this.frame();this.gpu.claim(this.items.map(b=>({x:b.x,y:b.y,w:b.w,h:b.h})));this.gpu.pixels(1,[{x:0,y:0,w:1024,h:480}],c.data);this.sendFrame();
+ render(force){if(!this.visible||!this.info)return;const a=this.app,key=JSON.stringify([this.tab,this.focus,a.mirror.status,a.mirror.running,a.mirror.starting,!!a.mirror.pairing,a.mirror.layout,a.mirror.target,a.background,a.guard.reason(),a.qr.url,a._releaseIndex,this.surface&&this.surface.visible,this.controls]);
+  if(!force&&key===this.lastKey)return;this.lastKey=key;this.recording=this.frame();this.gpu.claim(this.surface&&!this.controls?[{x:0,y:0,w:this.width,h:this.height}]:this.items.map(b=>({x:b.x,y:b.y,w:b.w,h:b.h})));
+  if(a.syncFocusProxies)a.syncFocusProxies(this.items,this.surface&&!this.controls);this.sendFrame();
  }
- sendFrame(){if(this.info&&this.visible){const op=imageOp(1,0,0,1024,480,0),words=new Uint32Array(op.length+2);words[0]=1;words[1]=0x0c0d10ff;words.set(op,2);this.gpu.frameWords(words);}}
+ sendFrame(){if(this.info&&this.visible&&this.recording){this.gpu.frame(this.recording);this.lastSent=Date.now();}}
  close(){clearInterval(this.timer);this.gpu.grab(false);this.gpu.show(false);this.gpu.close();}
 }
 module.exports={Dashboard};

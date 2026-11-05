@@ -25,6 +25,11 @@ class VehicleSignals {
         this.builders = sdk || require('oap-sdk/src/someip/someipBuilders');
         this.closed = false; this.proxies = []; this.timers = []; this.errors = [];
     }
+    recordError(message){
+        if(this.errors[this.errors.length-1]!==message)this.errors.push(message);
+        if(this.errors.length>12)this.errors.splice(0,this.errors.length-12);
+        this.changed();
+    }
     start() {
         const watches = [
             ['de.bmw.infotainment.vehicle.Vehicle2', 'speed', [
@@ -32,7 +37,8 @@ class VehicleSignals {
             ]],
             ['de.bmw.infrastructure.VehicleInformation', 'stage', [
                 ['statusGearboxDrive', (v) => this.guard.updateStage(v, 'statusActualStageDrive')],
-                ['DataPowerTrain2', (v) => this.guard.updateStage(v, 'statusGearSelectionDrive')]
+                ['DataPowerTrain2', (v) => this.guard.updateStage(v, 'statusGearSelectionDrive')],
+                ['DataPowerTrain2CRC', (v) => this.guard.updateStage(v, 'statusGearSelectionDrive')]
             ]]
         ];
         return Promise.all(watches.map((w) => {
@@ -51,25 +57,44 @@ class VehicleSignals {
                     // to expose getValue. Subscribe to BOTH variants: some cars
                     // publish DataPowerTrain2 but never statusGearboxDrive.
                     const choices = w[1] === 'speed' ? w[2].filter((x) => proxy[x[0]] && typeof proxy[x[0]].getValue === 'function') : [];
-                    let subscriptions = 0;
+                    let subscriptions = 0; const subscribed = [];
                     for (const field of w[2]) {
                         if (this.closed) return;
                         if (!proxy[field[0]] || typeof proxy[field[0]].subscribe !== 'function') continue;
                         try {
-                            await tick(() => this.closed ? undefined : timeout(proxy[field[0]].subscribe((v) => {
+                            const notify = (v) => {
+                                if (!this.closed) { field[1](v); this.changed(); }
+                            };
+                            const id = await tick(() => this.closed ? undefined : timeout(proxy[field[0]].subscribe((v) => {
                                 if (!this.closed) { field[1](v); this.changed(); }
                             }), 3000));
-                            subscriptions++;
+                            subscriptions++; subscribed.push({field, notify, id});
                         } catch (e) {
-                            this.errors.push(w[1] + ': ' + field[0] + ': ' + e.message);
-                            this.changed();
+                            this.recordError(w[1] + ': ' + field[0] + ': ' + e.message);
                         }
                     }
                     if (this.closed) return;
                     if (!choices.length && !subscriptions) throw new Error('No live ' + w[1] + ' field');
                     // Never refresh a cached gear value on a timer. Only a real
                     // notification may refresh ParkGuard's freshness deadline.
-                    if (!choices.length) return;
+                    if (!choices.length) {
+                        // An initial SOME/IP event is a real current reading. Renew
+                        // quiet event-only subscriptions instead of extending a
+                        // cached Park timestamp or inventing an unsupported getter.
+                        let renewing=false;
+                        const renew=async()=>{
+                            if(this.closed||renewing||this.guard.stageAt!==null&&this.guard.clock()-this.guard.stageAt<1200)return;
+                            renewing=true;
+                            try{for(const sub of subscribed){
+                                const field=proxy[sub.field[0]];
+                                if(!field||typeof field.unsubscribe!=='function'||sub.id===undefined)continue;
+                                await tick(()=>this.closed?undefined:timeout(field.unsubscribe(sub.id),800));
+                                if(!this.closed)sub.id=await tick(()=>timeout(field.subscribe(sub.notify),1000));
+                            }}catch(e){if(!this.closed)this.recordError('Park refresh: '+e.message);}
+                            finally{renewing=false;}
+                        };
+                        this.timers.push(setInterval(renew,700)); return;
+                    }
                     let busy = false;
                     const poll = () => {
                         if (busy || this.closed) return;
@@ -90,7 +115,7 @@ class VehicleSignals {
                     this.timers.push(setInterval(poll, 600)); poll();
                 }).catch((e) => {
                     if (this.closed) return;
-                    this.guard.invalidate(w[1]); this.errors.push(w[1] + ': ' + e.message); this.changed();
+                    this.guard.invalidate(w[1]); this.recordError(w[1] + ': ' + e.message);
                 });
         }));
     }
@@ -99,4 +124,4 @@ class VehicleSignals {
         return Promise.all(this.proxies.map((p) => Promise.resolve().then(() => p.shutdown && p.shutdown()).catch(() => {})));
     }
 }
-module.exports = { VehicleSignals };
+module.exports = { VehicleSignals, nativeTick: tick, withSignalTimeout: timeout };

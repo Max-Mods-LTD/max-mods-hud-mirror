@@ -1,0 +1,18 @@
+[Unit]
+Description=Max Mods separate Waze GPU decoder adapter
+Requires=maxmods-video.socket
+Wants=cluster-render.socket
+After=local-fs.target maxmods-video.socket cluster-render.socket
+[Service]
+User=hmi_5000
+Group=hmi_5000
+SupplementaryGroups=video tm_oap_app
+RuntimeDirectory=maxmods-video
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+ExecStart=/var/opt/maxmods-video/current/run.sh
+NoNewPrivileges=true
+KillMode=control-group
+TimeoutStopSec=2
+Restart=on-failure
+RestartSec=5

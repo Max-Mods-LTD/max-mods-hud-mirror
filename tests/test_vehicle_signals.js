@@ -96,4 +96,23 @@ function fixture() {
     assert.strictEqual(late.counts().shutdowns, 2);
     assert.deepStrictEqual(late.callbacks, {});
     console.log('PASS shutdown during startup closes late proxies without subscribing');
+    let crcNow=1000;const crc=fixture(),crcGuard=new ParkGuard(()=>crcNow);
+    crc.proxies[GEAR].DataPowerTrain2CRC={subscribe:cb=>{crc.callbacks.crc=cb;return Promise.resolve();}};
+    const crcSignals=new VehicleSignals(crcGuard,null,crc.sdk);
+    try{
+        await crcSignals.start();await turn();await turn();assert(crc.callbacks.crc);
+        for(let i=0;i<10;i++){crcNow+=700;crc.callbacks.speed({speedVehicleCentreOfGravity:0});crc.callbacks.crc({aliveDataPowerTrain2:i,statusGearSelectionDrive:3});assert(crcGuard.allowed());}
+        crcNow+=2600;crc.callbacks.speed({speedVehicleCentreOfGravity:0});assert(!crcGuard.allowed());
+        console.log('PASS changing powertrain CRC notifications preserve fresh Park and silence still expires it');
+    }finally{await crcSignals.close();}
+    let realNow=1000,notifications=true,subscriptions=0,unsubscribed=0;const renewal=fixture(),renewalGuard=new ParkGuard(()=>realNow);
+    delete renewal.proxies[GEAR].DataPowerTrain2;
+    renewal.proxies[GEAR].statusGearboxDrive={subscribe:cb=>{subscriptions++;if(notifications)cb({statusActualStageDrive:'P'});return Promise.resolve(subscriptions);},unsubscribe:id=>{assert(id>0);unsubscribed++;return Promise.resolve();}};
+    const renewalSignals=new VehicleSignals(renewalGuard,null,renewal.sdk);
+    try{
+        await renewalSignals.start();await turn();await turn();assert(renewalGuard.allowed());realNow+=1600;await delay(780);
+        assert(subscriptions>=2&&unsubscribed>=1);assert.strictEqual(renewalGuard.stageAt,realNow);assert(renewalGuard.allowed());
+        notifications=false;const last=renewalGuard.stageAt;realNow+=3000;await delay(780);assert.strictEqual(renewalGuard.stageAt,last);assert(!renewalGuard.allowed());
+        console.log('PASS quiet Park subscriptions request genuine initial events; timers never refresh a cached selector');
+    }finally{await renewalSignals.close();}
 })().catch((e) => { console.error(e); process.exitCode = 1; });

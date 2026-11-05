@@ -10,14 +10,16 @@
       "build": "unit",
       "title": "Max Mods HUD Mirror",
       "description": "Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "mguHmi": [
         "ID7"
       ],
       "requires": {
         "cluster-render": "0.3.7",
         "mgu-render": "0.2.0",
-        "mgu-deploy": "0.7.11"
+        "mgu-deploy": "0.7.11",
+        "maxmods-connect": "0.2.0",
+        "maxmods-video": "0.1.0"
       }
     },
     {
@@ -58,9 +60,9 @@
     {
       "id": "maxmods-connect",
       "kind": "tool",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "Max Mods Connect",
-      "description": "Optional QR connection helper. Opens only pairing TCP port 8477 on the selected car interface for its local subnet, while a QR is shown, for up to two minutes.",
+      "description": "QR pairing connection helper for matching local car networks; short subnet-restricted leases are removed on close/expiry.",
       "mguHmi": [
         "ID7"
       ],
@@ -111,6 +113,60 @@
         "deactivate"
       ],
       "path": "tools/Connect",
+      "build": "unit"
+    },
+    {
+      "id": "maxmods-video",
+      "kind": "tool",
+      "version": "0.1.0",
+      "title": "Max Mods GPU Video",
+      "description": "Uses a separate session of the installed Waze hardware decoder for HUD/cluster video. No firmware patches. JPEG remains the fallback; requires a working installed Waze decoder for GPU mode.",
+      "mguHmi": [
+        "ID7"
+      ],
+      "optional": true,
+      "uninstallable": true,
+      "requires": {
+        "mgu-deploy": "0.7.11",
+        "cluster-render": "0.3.7"
+      },
+      "files": [
+        {
+          "path": "engine.js",
+          "from": "engine.js",
+          "mode": "0644"
+        },
+        {
+          "path": "run.sh",
+          "from": "run.sh",
+          "mode": "0755"
+        }
+      ],
+      "units": [
+        {
+          "name": "maxmods-video.socket",
+          "from": "maxmods-video.socket"
+        },
+        {
+          "name": "maxmods-video.service",
+          "from": "maxmods-video.service"
+        }
+      ],
+      "enable": [
+        {
+          "unit": "maxmods-video.socket",
+          "target": "sockets.target"
+        }
+      ],
+      "recmgr": [
+        "maxmods-video"
+      ],
+      "activate": [
+        "node",
+        "engine.js",
+        "activate"
+      ],
+      "path": "tools/Video",
       "build": "unit"
     }
   ]

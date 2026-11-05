@@ -24,7 +24,7 @@ def write(p, obj):
 def uid(name):
     return str(uuid.uuid5(NS, name))
 
-release_lines = [textwrap.wrap(change, width=60) for change in RELEASE['changes']]
+release_lines = [textwrap.wrap(change, width=60, break_long_words=False, break_on_hyphens=False) for change in RELEASE['changes']]
 assert all(0 < len(lines) <= 2 for lines in release_lines), 'Keep each release note within two 60-character lines'
 generated_notes = {'version': VERSION, 'phoneVersion': RELEASE['phoneVersion'], 'changes': RELEASE['changes'], 'lines': release_lines}
 (CAR / 'src' / 'release_notes.js').write_text('// SPDX-License-Identifier: GPL-3.0-or-later\n// Generated from release_notes.json.\n\'use strict\';\nmodule.exports = ' + json.dumps(generated_notes, indent=2) + ';\n')
@@ -35,7 +35,7 @@ rows = [
     (22, 'label', 'mirrorPhone', 'Start sharing on your phone, then select Pair phone'),
     (23, 'label', 'mirrorVersion', 'Car ' + VERSION + ' / phone ' + RELEASE['phoneVersion']),
     (24, 'label', 'mirrorAudio', 'Sound: select BMW Bluetooth media before mirroring'),
-    (30, 'button', 'mirrorTest', 'Test HUD (8 seconds)'),
+    (30, 'button', 'mirrorTest', 'Test selected display (8 seconds)'),
     (31, 'button', 'mirrorPair', 'Pair phone'),
     (32, 'button', 'mirrorStart', 'Start mirror'),
     (33, 'button', 'mirrorStop', 'Stop mirror'),
@@ -43,6 +43,8 @@ rows = [
     (35, 'button', 'mirrorTarget', 'Display: Head-up display'),
     (36, 'button', 'mirrorBackground', 'Keep mirroring on other pages: On'),
     (37, 'button', 'mirrorQr', 'Pair with QR'),
+    (38, 'button', 'mirrorForceClose', 'Force close / reset app'),
+    (39, 'button', 'mirrorDiagnostics', 'Connection diagnostics'),
     (40, 'label', 'mirrorWhatsNew', "What's new in " + VERSION + ' (1/' + str(len(release_lines)) + ')'),
     (41, 'label', 'mirrorReleaseLine1', release_lines[0][0]),
     (42, 'label', 'mirrorReleaseLine2', release_lines[0][1] if len(release_lines[0]) > 1 else ''),
@@ -64,21 +66,31 @@ for ident, kind, name, label in rows:
     if kind != 'title':
         widget = 'LT_Button_1Row' if kind == 'button' else 'LT_Label_1Row'
         xml.append(f'      <component id="{ident}" type="{kind}" widget="{widget}"><property id="2" value="1"/><property id="3" value="{focus}"/></component>')
-xml += ['    </layoutGroup>', '  </container>',
-    '  <container id="2" type="state" widget="LT_State_A4A_WelcomeApp">',
-    '    <layoutGroup id="300" name="Titlebar"><component id="110" type="title"><property id="2" value="1"/></component></layoutGroup>',
-    '    <layoutGroup id="301" name="List"><property id="3" value="1"/><component id="111" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component></layoutGroup>',
-    '  </container>', '</application>']
+xml += ['    </layoutGroup>', '  </container>']
+containers = {'1': {'type': 'state', 'name': 'ST_MaxModsHudMirror', 'components': components}}
+extra_states = [
+    (2, 'ST_MaxModsDashboard', 'LT_State_A4A_WelcomeApp', [(1400+i, 'dashboardAction'+str(i), 'Control '+str(i+1)) for i in range(12)]),
+    (3, 'ST_MaxModsDisplayPicker', 'LT_State_Wide', [(1500,'pickHud','Head-up display'),(1501,'pickCluster','Instrument cluster'),(1502,'pickIdrive','iDrive screen')]),
+    (4, 'ST_MaxModsLayoutPicker', 'LT_State_Wide', [(1510,'pickCompact','Compact'),(1511,'pickFull','Full display')]),
+    (5, 'ST_MaxModsSettingsPicker', 'LT_State_Wide', [(1520,'pickAutoGpu','Automatic GPU video'),(1521,'pickJpeg','JPEG compatibility mode'),(1522,'pickBackground','Mirror on other pages'),(1523,'pickForget','Forget linked phone'),(1524,'pickDiagnostics','Connection diagnostics')]),
+    (6, 'ST_MaxModsDiagnostics', 'LT_State_Wide', [(1600,'diagOutput','Output','label'),(1601,'diagRate','Received fps','label'),(1602,'diagPhone','Phone','label'),(1603,'diagCapture','Capture','label'),(1604,'diagSpeed','Speed freshness','label'),(1605,'diagPark','Park freshness','label'),(1606,'diagIssue','Last issue','label'),(1607,'diagIssue2','','label'),(1608,'diagSignals','Signal provider','label'),(1609,'diagReconnect','Reconnect linked phone'),(1610,'diagBack','Back')])
+]
+for sid, name, widget, controls in extra_states:
+    title_id=110+sid
+    title='Connection diagnostics' if sid==6 else 'Display options' if sid>2 else 'Max Mods HUD Mirror'
+    state_components={str(title_id): {'type':'title','name':name+'Title','properties':{'Visible':{'value':1,'type':'UInt'}},'rows':[{'Text':{'value':title,'type':'Text'}}]}}
+    xml += [f'  <container id="{sid}" type="state" widget="{widget}">',f'    <layoutGroup id="{sid*100+500}" name="Titlebar"><component id="{title_id}" type="title"><property id="2" value="1"/></component></layoutGroup>',f'    <layoutGroup id="{sid*100+501}" name="List"><property id="3" value="1"/>']
+    for row in controls:
+        ident,control,label=row[:3];kind=row[3] if len(row)>3 else 'button';focus=3 if kind=='button' else 0;row_widget='LT_Button_1Row' if kind=='button' else 'LT_Label_1Row'
+        xml.append(f'      <component id="{ident}" type="{kind}" widget="{row_widget}"><property id="2" value="1"/><property id="3" value="{focus}"/></component>')
+        state_components[str(ident)]={'type':kind,'name':control,'properties':{'Visible':{'value':1,'type':'UInt'},'Focusable':{'value':focus,'type':'UInt'}},'rows':[{'Text':{'value':label,'type':'Text'}}]}
+    xml += ['    </layoutGroup>','  </container>']
+    containers[str(sid)]={'type':'state','name':name,'components':state_components}
+xml.append('</application>')
 ui = TREE / 'rhmiData' / 'uiDescriptions' / 'ID7'
 ui.mkdir(parents=True, exist_ok=True)
 (ui / 'application.xml').write_text('\n'.join(xml) + '\n')
-write(ui / 'uiDescription.json', {'schemaVersion': '1.3.0', 'containers': {
-    '1': {'type': 'state', 'name': 'ST_MaxModsHudMirror', 'components': components},
-    '2': {'type': 'state', 'name': 'ST_MaxModsDashboard', 'components': {
-        '110': {'type': 'title', 'name': 'dashboardTitle', 'properties': {'Visible': {'value': 1, 'type': 'UInt'}}, 'rows': [{'Text': {'value': 'Max Mods HUD Mirror', 'type': 'Text'}}]},
-        '111': {'type': 'button', 'name': 'mirrorStandard', 'properties': {'Visible': {'value': 1, 'type': 'UInt'}, 'Focusable': {'value': 3, 'type': 'UInt'}}, 'rows': [{'Text': {'value': 'Open standard controls', 'type': 'Text'}}]}
-    }}
-}})
+write(ui / 'uiDescription.json', {'schemaVersion':'1.3.0','containers':containers})
 write(TREE / 'rhmiData' / 'application.json', {'schemaVersion': '1.3.0', 'application': {
     'uuid': uid('application'), 'type': 'OnlineApp', 'name': APP, 'vendor': 'Max Mods', 'version': VERSION,
     'defaultLanguage': 'en_GB', 'stringBundleUuid': uid('strings'), 'resourceBundleUuid': uid('resources'),
@@ -92,7 +104,7 @@ write(TREE / 'rhmiData' / 'application.json', {'schemaVersion': '1.3.0', 'applic
 languages = ['ar_AE','cs_CZ','da_DK','de_DE','el_GR','en_GB','en_US','es_ES','fi_FI','fr_FR','he_IL','hr_HR','hu_HU','id_ID','it_IT','ja_JP','ko_KR','nb_NO','nl_NL','no_NO','pl_PL','pt_BR','pt_PT','ro_RO','ru_RU','sk_SK','sl_SI','sv_SE','th_TH','tr_TR','uk_UA','vi_VN','zh_CN','zh_TW']
 for lang in languages:
     write(TREE / 'rhmiData' / 'variantGroups' / 'Common' / 'texts' / (lang + '.json'), {'SID_HUD_TITLE': 'Max Mods HUD Mirror'})
-write(TREE / 'package.json', {'name': APP, 'version': VERSION, 'description': 'Android screen mirroring to the iDrive 7 HUD or instrument cluster while stationary in Park',
+write(TREE / 'package.json', {'name': APP, 'version': VERSION, 'description': 'Android screen mirroring to one iDrive 7 display: HUD, instrument cluster or iDrive screen, while stationary in Park',
     'main': 'javascript/runner.js', 'author': 'Max Mods', 'license': 'GPL-3.0-or-later', 'mguLocalOnly': True,
     'mguHmi': ['ID7'], 'mguInternet': True,
     'engines': {'node': '>=8.7.0'}, 'dependencies': {'oap-sdk': '24.10.2'},
@@ -121,26 +133,28 @@ proxies.update({
     'de.bmw.infotainment.certification.Certification': '*',
     'de.bmw.infotainment.vehicle.Vehicle2': {'instances': '1', 'attributes': {'statusCarSpeed2': 'rs'}},
     # Gear fields have notifications, but no getter in BMW's catalog.
-    'de.bmw.infrastructure.VehicleInformation': {'instances': '1', 'attributes': {'statusGearboxDrive': 's','DataPowerTrain2': 's'}}
+    'de.bmw.infrastructure.VehicleInformation': {'instances': '1', 'attributes': {'statusGearboxDrive': 's','DataPowerTrain2': 's','DataPowerTrain2CRC':'s'}}
 })
+proxies['de.bmw.infotainment.controlelements.FrontCCU']={'instances':'1','attributes':{'statusRotaryEncoderState':'s'}}
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.
 write(TREE / 'permissions.json', {x: [] for x in ['masterAccessTable','mediatorAccessTable','ownerAccessTable','masterRegistrationTable','mediatorRegistrationTable','ownerRegistrationTable','domainRoleTable']})
-modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js','jpeg_worker.js','qr_pairing.js','qrcode.js','dashboard.js','brand_canvas.js','mgu_render_client.js']
+modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js','jpeg_worker.js','qr_pairing.js','qrcode.js','dashboard.js','brand_canvas.js','mgu_render_client.js','gpu_canvas.js','idrive_renderer.js','gpu_video_renderer.js','saved_phone.js']
 write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree': TREE.name, 'internet': True,
     'modules': ['src/' + x for x in modules], 'sdk': ['oap-sdk/src/core/OnlineApp.js','oap-sdk/src/logging/logging','oap-sdk/src/someip/someipBuilders']})
 write(ROOT / 'mgu-repo.json', {'schema': 1, 'name': 'MaxModsIdriveApps', 'title': 'Max Mods iDrive Apps', 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
     'description': 'Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.', 'version': VERSION, 'mguHmi': ['ID7'],
-    'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11'}},
+    'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11','maxmods-connect':'0.2.0','maxmods-video':'0.1.0'}},
     dict(json.loads((ROOT / 'tools/Display60/component.json').read_text()), path='tools/Display60', build='unit'),
-    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect', build='unit')]})
-image = Image.new('RGBA', (140, 140), (12,13,16,255))
-logo = Image.open(ROOT / 'assets' / 'max-mods-logo.png').convert('RGBA')
-logo.thumbnail((130,50), Image.Resampling.LANCZOS)
-image.alpha_composite(logo, ((140-logo.width)//2, 45))
+    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect', build='unit'),
+    dict(json.loads((ROOT / 'tools/Video/component.json').read_text()), path='tools/Video', build='unit')]})
+image = Image.new('RGBA', (140, 140), (0,0,0,0))
+logo = Image.open(ROOT / 'assets' / 'max-mods-logo-stacked.png').convert('RGBA')
+logo.thumbnail((130,80), Image.Resampling.LANCZOS)
+image.alpha_composite(logo, ((140-logo.width)//2, 18))
 draw = ImageDraw.Draw(image)
 font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 12)
-draw.text((34,88), 'HUD Mirror', font=font, fill='white')
+draw.text((34,112), 'HUD Mirror', font=font, fill='white')
 icon = TREE / 'rhmiData' / 'variantGroups' / 'Common' / 'images' / 'hud_mirror.png'
 icon.parent.mkdir(parents=True, exist_ok=True); image.save(icon)
 phone_icon = ROOT / 'android/app/src/main/res/drawable/maxmods_icon.png'

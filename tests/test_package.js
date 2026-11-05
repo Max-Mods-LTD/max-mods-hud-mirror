@@ -31,7 +31,7 @@ const permissions = JSON.parse(fs.readFileSync(path.join(root, 'car', manifest.t
 const speed = permissions.proxies['de.bmw.infotainment.vehicle.Vehicle2'].attributes;
 assert.deepStrictEqual(speed, { statusCarSpeed2: 'rs' });
 const gear = permissions.proxies['de.bmw.infrastructure.VehicleInformation'].attributes;
-assert.deepStrictEqual(gear, { statusGearboxDrive: 's', DataPowerTrain2: 's' });
+assert.deepStrictEqual(gear, { statusGearboxDrive: 's', DataPowerTrain2: 's', DataPowerTrain2CRC: 's' });
 assert.strictEqual(repo.components[0].version, manifest.version);
 assert.strictEqual(manifest.tree, manifest.id + '@' + manifest.version);
 const release = JSON.parse(fs.readFileSync(path.join(root, 'release_notes.json'))).releases[0];
@@ -54,7 +54,7 @@ assert(names.some(n=>n.endsWith('assets/jpeg-decoder')));
 assert(names.some(n=>n.endsWith('assets/brand.json')));
 assert(names.some(n=>n.endsWith('assets/decoder-source/main.c')));
 assert.strictEqual(repo.name,'MaxModsIdriveApps');
-for(const id of ['maxmods-display60','maxmods-connect'])assert(repo.components.some(c=>c.id===id&&c.optional&&c.build==='unit'));
+for(const id of ['maxmods-display60','maxmods-connect','maxmods-video'])assert(repo.components.some(c=>c.id===id&&c.optional&&c.build==='unit'));
 assert.strictEqual(ui.containers['2'].name,'ST_MaxModsDashboard');
 const rawTar=require('zlib').gunzipSync(fs.readFileSync(built));
 let nativeMode=null;for(let at=0;at+512<=rawTar.length;){const name=rawTar.slice(at,at+100).toString().replace(/\0.*$/,'');if(!name)break;const size=parseInt(rawTar.slice(at+124,at+136).toString(),8)||0;if(name.endsWith('assets/jpeg-decoder'))nativeMode=parseInt(rawTar.slice(at+100,at+108).toString(),8);at+=512+Math.ceil(size/512)*512;}

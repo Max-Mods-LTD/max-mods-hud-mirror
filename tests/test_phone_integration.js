@@ -36,17 +36,22 @@ async function command(name) {
     await until(() => done);
 }
 async function run(pin) {
-    const denied = await p.request('127.0.0.1', '/v3/stream?after=0', null, null, 100);
+    const denied = await p.request('127.0.0.1', '/v4/stream?after=0', null, null, 100);
     assert.strictEqual(denied.status, 403);
-    const wrong = await p.request('127.0.0.1', '/v3/pair', null, pin === '00000000' ? '11111111' : '00000000', 100);
+    const wrong = await p.request('127.0.0.1', '/v4/pair', null, pin === '00000000' ? '11111111' : '00000000', 100);
     assert.strictEqual(wrong.status, 403);
-    const paired = await p.request('127.0.0.1', '/v3/pair', null, pin, 1024);
+    const paired = await p.request('127.0.0.1', '/v4/pair', null, pin, 1024);
     assert.strictEqual(paired.status, 200);
     const info = JSON.parse(paired.body.toString());
     assert(/^[a-f0-9]{32}$/.test(info.token));
-    assert.strictEqual(info.protocol, 3); assert.strictEqual(info.width, process.argv[2] === 'smooth' ? 576 : WIDTH); assert.strictEqual(info.height, process.argv[2] === 'smooth' ? 324 : HEIGHT);
+    assert.strictEqual(info.protocol, 4); assert.strictEqual(info.width, process.argv[2] === 'smooth' ? 576 : WIDTH); assert.strictEqual(info.height, process.argv[2] === 'smooth' ? 324 : HEIGHT);
     assert.strictEqual(info.fps, process.argv[2] === 'smooth' ? 60 : 30); assert.strictEqual(info.format, 'jpeg');
     const token = Object.assign({host:'127.0.0.1'},info);
+    assert.strictEqual(info.resume,'0123456789abcdef0123456789abcdef');
+    const badResume=await p.request('127.0.0.1','/v4/resume',null,'0'.repeat(32),2048);assert.strictEqual(badResume.status,403);
+    const resumed=await p.request('127.0.0.1','/v4/resume',null,info.resume,2048);assert.strictEqual(resumed.status,200);assert.strictEqual(JSON.parse(resumed.body).token,info.token);
+    const prepared=await p.prepare(token,'jpeg');assert.strictEqual(prepared.format,'jpeg');
+    await assert.rejects(p.prepare(token,'h264'),/503/);await p.keyframe(token);
     const frames = [], states = [], errors = []; let firstPixels;
     p.stream(token, { frame: (pixels, id) => {
         if (!frames.length) firstPixels = pixels;
@@ -70,13 +75,13 @@ async function run(pin) {
     for (let i = 1; i < frames.length; i++) assert(frames[i].id > frames[i - 1].id);
     assert.strictEqual(errors.length, 0);
     console.log('PASS real Java -> HTTP stream -> Node decoder: ' + fps.toFixed(1) + ' fps on the host; this does not measure the car projector');
-    const wrongToken = await p.request('127.0.0.1', '/v3/stream?after=0', 'f'.repeat(32), null, 100);
+    const wrongToken = await p.request('127.0.0.1', '/v4/stream?after=0', 'f'.repeat(32), null, 100);
     assert.strictEqual(wrongToken.status, 403);
     const missing = await p.request('127.0.0.1', '/anything', info.token, null, 100);
     assert.strictEqual(missing.status, 404);
     // One initial bad attempt + a successful pair + three bad attempts uses the peer budget.
-    for (let i = 0; i < 3; i++) await p.request('127.0.0.1', '/v3/pair', null, 'BADCODE!', 100);
-    const limited = await p.request('127.0.0.1', '/v3/pair', null, pin, 100);
+    for (let i = 0; i < 3; i++) await p.request('127.0.0.1', '/v4/pair', null, 'BADCODE!', 100);
+    const limited = await p.request('127.0.0.1', '/v4/pair', null, pin, 100);
     assert.strictEqual(limited.status, 429);
     const replacement = new PhoneClient(), replacementErrors = []; let replacementFrames = 0;
     try {

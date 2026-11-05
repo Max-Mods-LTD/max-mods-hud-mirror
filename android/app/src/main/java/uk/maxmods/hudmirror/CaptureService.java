@@ -30,6 +30,7 @@ public final class CaptureService extends Service {
     private Handler captureHandler;
     private DisplayManager.DisplayListener rotationListener;
     private PairingServer server;
+    private CodecCapture avc;
     private String bindAddress;
     private long lastFrameNs;
     private long startedMs;
@@ -68,7 +69,7 @@ public final class CaptureService extends Service {
         Inet4Address now = MainActivity.wifiAddress(CaptureService.this);
         if (now == null || !now.getHostAddress().equals(bindAddress)) { finish("Sharing stopped: Wi-Fi connection changed"); return; }
         if (SystemClock.elapsedRealtime() - startedMs >= 10 * 60 * 1000L) { finish("Session ended. Start sharing again."); return; }
-        if (server != null) status = !captureVisible ? "Shared app hidden. Return to it to resume." : server.isPaired() ? "Video sharing active. Sound uses BMW Bluetooth media." : "Sharing ready. Pair in the car.";
+        if (server != null) status = !captureVisible ? "Shared app hidden. Return to it to resume." : server.isStreaming() ? "Video sharing active. Sound uses BMW Bluetooth or Android Auto." : server.isPaired() ? "Car linked. Use Start mirror in the car to resume." : "Sharing ready. Pair once, or wait for the linked car.";
         main.postDelayed(this, 1000);
     }};
     public IBinder onBind(Intent intent) { return null; }
@@ -132,7 +133,18 @@ public final class CaptureService extends Service {
                 ((DisplayManager) getSystemService(DISPLAY_SERVICE)).registerDisplayListener(rotationListener, captureHandler);
             }
             frames.heartbeat(); captureHandler.post(captureHeartbeat);
-            server = new PairingServer(wifi, PairingServer.PORT, frames, transport); server.start();
+            server = new PairingServer(wifi, PairingServer.PORT, frames, transport);
+            String trusted=getSharedPreferences("hud_mirror",MODE_PRIVATE).getString("trustedCarKey",null);
+            if(trusted==null){trusted=java.util.UUID.randomUUID().toString().replace("-","");getSharedPreferences("hud_mirror",MODE_PRIVATE).edit().putString("trustedCarKey",trusted).apply();}
+            server.setResumeKey(trusted);
+            server.setVideoControl(new PairingServer.VideoControl(){
+                public String configure(final String mode){
+                    final java.util.concurrent.CountDownLatch ready=new java.util.concurrent.CountDownLatch(1);final String[] error={null};
+                    captureHandler.post(new Runnable(){public void run(){try{configureCodec(mode);}catch(Exception e){error[0]=e.getMessage();}finally{ready.countDown();}}});
+                    try{if(!ready.await(4500,java.util.concurrent.TimeUnit.MILLISECONDS))return "Video setup timed out";}catch(InterruptedException e){Thread.currentThread().interrupt();return "Video setup interrupted";}return error[0];
+                }
+                public void keyframe(){captureHandler.post(new Runnable(){public void run(){if(avc!=null)avc.keyframe();}});}
+            });server.start();
             pairingText = bindAddress + "/" + server.getPin();
             status = "Sharing ready. Pair in the car."; startedMs = SystemClock.elapsedRealtime();
             main.post(monitor);
@@ -162,6 +174,7 @@ public final class CaptureService extends Service {
     }
     private void resizeCapture(int width, int height) {
         if (!active || cleaning || display == null || reader == null) return;
+        if(avc!=null){sourceWidth=width;sourceHeight=height;return;}
         sourceWidth = width; sourceHeight = height;
         int[] size = captureSize(width, height);
         if (reader.getWidth() == size[0] && reader.getHeight() == size[1]) return;
@@ -172,6 +185,21 @@ public final class CaptureService extends Service {
             display.resize(size[0], size[1], density);
             reader = next; display.setSurface(next.getSurface()); old.close();
         } catch (final Exception e) { main.post(new Runnable() { public void run() { finish("Capture resize failed: " + e.getMessage()); } }); }
+    }
+    private void configureCodec(String mode)throws Exception{
+        if(cleaning||!active||display==null)throw new IllegalStateException("Sharing stopped");
+        if(mode.equals("jpeg")&&avc==null&&frames.format().equals("jpeg"))return;
+        captureHandler.removeCallbacks(captureTask);captureScheduled=false;
+        if(mode.equals("h264")){
+            if(avc!=null){avc.keyframe();return;}
+            CodecCapture next=new CodecCapture();
+            android.view.Surface surface=next.start(frames.fps(),captureHandler,frames,new CodecCapture.Failure(){public void failed(final String error){main.post(new Runnable(){public void run(){finish(error);}});}});
+            frames.setFormat("h264-annexb");avc=next;display.resize(next.width,next.height,density);display.setSurface(surface);avc.keyframe();
+        }else{
+            frames.setFormat("jpeg");CodecCapture old=avc;avc=null;
+            int[] size=captureSize(sourceWidth,sourceHeight);if(reader.getWidth()!=size[0]||reader.getHeight()!=size[1]){ImageReader previous=reader;reader=newReader(size[0],size[1]);display.setSurface(reader.getSurface());previous.close();}
+            display.resize(size[0],size[1],density);display.setSurface(reader.getSurface());if(old!=null)old.close();
+        }
     }
     private void capture(ImageReader source) {
         Image image = null;
@@ -202,7 +230,7 @@ public final class CaptureService extends Service {
         if (display != null) { display.release(); display = null; }
         if (reader != null) { reader.close(); reader = null; }
         if (projection != null) { MediaProjection p = projection; projection = null; p.stop(); }
-        if (captureHandler != null) captureHandler.post(new Runnable() { public void run() { encoder.close(); } });
+        if (captureHandler != null) captureHandler.post(new Runnable() { public void run() { if(avc!=null){avc.close();avc=null;}encoder.close(); } });
         if (worker != null) { worker.quitSafely(); worker = null; }
         stopForeground(STOP_FOREGROUND_REMOVE);
     }

@@ -1,78 +1,129 @@
-# Phone stream protocol 3
+# Phone stream protocol 4
 
-The phone binds its selected private Wi-Fi IPv4 address on TCP 8476.
-`POST /v3/pair` accepts the eight-digit PIN and returns an ephemeral 128-bit
-bearer token plus `protocol:3`, `format:"jpeg"` and one of these exact profiles:
+Phone and car both require version **0.5.0**. The phone binds its selected
+private Wi-Fi IPv4 address on TCP 8476. Requests with an Origin, unsupported
+routes/body lengths or unauthorised peers/tokens are refused.
 
-| Profile | Width | Height | Maximum target fps |
+## Pairing and linked start
+
+POST /v4/pair exchanges the eight-digit PIN for an ephemeral 128-bit bearer
+token, a private reconnect credential and protocol/profile information.
+Pairing has a bounded per-peer/session attempt budget.
+
+POST /v4/resume accepts the fixed 32-hex reconnect credential. It reconnects
+only to a running capture server and returns that session's token/info.
+Failed attempts are bounded. It cannot start MediaProjection or approve
+Android consent. The car polls its one saved private address every two
+seconds while idle; a new token can auto-start after genuine Park checks.
+A car Stop suppresses auto-start for that token.
+
+The credential is held in Android private preferences (backup disabled) and
+the car's SDK app-data folder (0600). Session tokens and PINs are memory-only.
+Forget on the phone removes the credential; the next capture creates a new
+one. Forget on the car removes its saved link.
+
+| Profile | Renderer width | Renderer height | Maximum requested fps |
 | --- | --- | --- | --- |
 | Sharp | 768 | 432 | 30 |
 | Smooth | 576 | 324 | 60 |
 
-Unknown dimensions, formats or combinations are refused. Both apps must be
-0.4.0. The negotiated fps is a maximum target, not a measured display rate.
+Info includes protocol:4 and format:jpeg or h264-annexb. Unknown combinations
+are refused. The rate is a requested maximum, not a measured display rate.
 
-`GET /v3/stream?after=<id>` requires `Authorization: Bearer <token>`. The
-response is a continuous `application/x-maxmods-hud-stream` body with
-`X-Mirror-Protocol: 3`. Each record has a 13-byte header:
+Authenticated POST /v4/prepare accepts exactly jpeg or h264 (four bytes).
+The phone switches the surface on its one VirtualDisplay. JPEG retains the
+selected canvas. Hardware AVC captures the complete screen into 1280 × 720,
+with Android aspect fit; native decoder VPP scales to the renderer canvas.
+Android 12L+ uniform scaling is required for this path. Older Android or
+unsupported hardware/configuration returns an error and the car selects JPEG.
+POST /v4/keyframe with a one-byte body requests a fresh AVC sync frame.
+
+## Stream framing
+
+GET /v4/stream?after=id requires Authorization: Bearer token. The response is
+application/x-maxmods-hud-stream with X-Mirror-Protocol:4. Each record has:
 
 | Offset | Type | Meaning |
 | --- | --- | --- |
-| 0 | uint32 LE | JPEG payload length, at most 600000 bytes |
+| 0 | uint32 LE | Payload length, no more than 600000 |
 | 4 | uint8 | Kind |
-| 5 | uint64 LE | Capture sequence within JavaScript's safe integer range |
-| 13 | bytes | JPEG for kind 1; no payload for other kinds |
+| 5 | uint64 LE | Increasing capture sequence, safe in JavaScript integers |
+| 13 | bytes | One complete JPEG / AVC access unit for kind 1 |
 
 | Kind | Meaning |
 | --- | --- |
-| 1 | New complete JPEG picture |
-| 2 | Authenticated capture-alive heartbeat; does not create a new image |
-| 3 | Capture live, waiting for first/new image |
-| 4 | Captured app hidden; discard cached/pending pictures |
-| 5 | Capture stopped/stalled/session ended; terminal, do not reconnect |
+| 1 | New compressed picture / AVC access unit |
+| 2 | Authenticated capture-alive; no new picture |
+| 3 | Capture live, waiting for a picture |
+| 4 | Shared content hidden; discard pending/reference pictures |
+| 5 | Stopped/stalled/expired capture; terminal |
 
-Frame IDs increase. Pictures fit the entire phone capture in the fixed canvas.
-The phone keeps only the newest JPEG and paces writes; a slow client does not
-build a video backlog. The car allows one native decode in flight and one latest
-waiting frame. Hidden/closed epochs discard late decoder completions.
+JPEG stores only the newest frame. The car allows one native decode and one
+latest waiting frame. AVC needs reference order: the phone retains at most
+12 access units / 2 MiB. On gaps the car discards non-IDR units and requests a
+keyframe, at most every 250 ms. Each IDR has codec configuration prefixed.
+A slow writer is bounded and can cause JPEG fallback; no unbounded playback
+queue is allowed. AVC byte pacing does not independently drop reference
+frames to impose a second fps limiter.
 
-The unprivileged native worker accepts a uint32-LE JPEG length and JPEG on stdin,
-then returns uint32-LE atlas length and full-range BT.601 YUV420 atlas on stdout.
-The atlas holds Y at full width/height, followed by half-resolution U and V
-side-by-side (each half the full width). The worker validates size before
-allocation/decode, caps address space at 96 MiB and has a client-side 2 s deadline.
-No screenshot file is used. Legacy Store archives without execute bits use a
-private executable copy in the SDK-provided app data folder, removed on close.
+Capture-alive is renewed only by the capture worker after checking Android's
+projection/display and phone state. HTTP or unchanged pixels cannot renew
+it. Hidden content, locking, expired liveness, Stop and the ten-minute limit
+clear the store. JPEG link recovery is bounded to three retries and waits for
+a new live frame. GPU disconnection/pause falls back once to JPEG.
 
-Capture liveness is renewed only by the capture worker after projection/display
-checks, not by HTTP requests or pixel changes. Hidden content, locking, expired
-liveness, Stop and the 10-minute session end clear the frame store. Brief network
-failures may reconnect up to three times; a new live frame is required to show
-anything. Park/stale-signal checks remain independent of network recovery.
+## Car output
 
-## QR pairing
+The JPEG worker accepts a uint32-LE length plus JPEG on stdin and returns a
+uint32-LE length plus full-range BT.601 YUV420 atlas. It validates dimensions,
+caps memory at 96 MiB and has a two-second client deadline. Y is full size;
+half-width U/V are side by side beneath it. No screenshot file is used.
 
-The car temporarily listens on one local private address, TCP 8477, when Pair
-with QR is selected. The QR contains
-`maxmods://pair?v=1&host=<local-ip>&port=8477&key=<48-hex-nonce>`.
-It expires after two minutes. The phone scans locally with ZXing and sends the
-eight-digit phone PIN to `POST /pair`, header `X-MaxMods-Pair: <nonce>`, using
-the same Wi-Fi network as capture. Redirects/public addresses are refused.
+HUD/cluster JPEG sends that atlas to cluster-render. Cluster uses map with
+contend=true, not the full gauge panel. Compact/Full geometry keeps aspect.
 
-The car derives the phone address from the incoming socket, checks the nonce,
-request length/origin, attempt budget, deadline and Park state, claims the nonce
-once, and completes the existing outgoing phone pairing. It never trusts a
-phone-supplied address. Camera frames and the nonce are never logged or uploaded.
+iDrive output converts the atlas to contiguous I420 planes in a RAM-only
+/dev/shm/mgu-video-maxmods-* file. Its 64-byte MGUV v1 header names dimensions,
+three slots, sequence, selected slot, BT.601 and full range. The writer fills
+the next slot, publishes slot then sequence. mgu-render samples newest frames
+on the GPU without per-frame dashboard uploads. Close unregisters and removes
+the file. UI frames are small native rect/glyph/image/video operations.
 
-The optional Max Mods Connect tool provides a Unix-socket privilege boundary at
-`/run/maxmods-connect/pair.sock`, group `tm_oap_app`. Its only request is
-`{"op":"pair","host":"<car-local-ip>"}`. It validates the address against actual
-local interfaces, then temporarily permits TCP 8477 only to that address on
-that interface from its subnet. No arbitrary port/command/duration is accepted.
-The lease ends on client disconnect or after two minutes; cleanup removes only
-rules marked MaxModsQR. The bridge never receives a PIN, QR nonce or screenshot.
-Without the helper, direct QR can work where the existing car firewall permits
-it; manual pairing remains available.
+The maxmods-video helper uses /run/maxmods-video/control.sock. Its bounded
+open request accepts only HUD/map, Compact/Full and the two profiles above.
+It starts a separate process of the already-installed Waze decoder with its
+own FIFO/config/control paths, no AVB/UDP/CarPlay input, no firmware patching,
+and guide hiding off. It forwards native status and validates the target.
+A genuine phone capture-alive record renews its short lease. Close, socket
+loss or expiry kills only the owned child; normal close acknowledges after
+exit. New outputs wait for release. Existing Waze is never stopped/reconfigured.
 
-These protocols use authenticated local HTTP, without transport encryption.
-Use a trusted BMW network. Tokens, codes and pictures are memory-only.
+Speed/Park freshness, app visibility options and session deadlines remain
+independent of transport. No output is authorised by cached/timer-generated
+vehicle readings.
+
+## QR pairing version 2
+
+Pair with QR temporarily listens on TCP 8477. It advertises up to four
+eligible private car addresses:
+
+maxmods://pair?v=2&host=first&hosts=comma-separated-addresses&port=8477&key=48hex
+
+The phone selects only addresses in the same subnet as its capture Wi-Fi
+network and binds the HTTP request to that Network. It sends the eight-digit
+PIN to POST /pair, header X-MaxMods-Pair. Redirects/public addresses are refused.
+The car derives the phone address from the socket, checks nonce, length,
+origin, attempts, expiry and live Park, then claims the nonce once and performs
+the normal outgoing pairing. Camera frames remain local.
+
+Connect 0.2.0 grants a temporary lease through its group-restricted Unix
+socket. It validates one to four addresses against actual interfaces and
+adds only TCP 8477 rules for the interface, destination and source subnet.
+No arbitrary commands/ports/durations are accepted. Disconnect/expiry removes
+only MaxModsQR rules, with cleanup retry. The helper receives no PIN, QR key
+or video. QR is shown only after the helper becomes ready; manual pairing
+remains available if it fails.
+
+These local protocols are authenticated but not transport-encrypted. Use a
+trusted BMW network. Only the private reconnect credential/address and display
+preferences persist; screens, camera frames, PINs and session tokens do not.

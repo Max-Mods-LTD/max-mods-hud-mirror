@@ -9,8 +9,8 @@
       "path": "car",
       "build": "unit",
       "title": "Max Mods HUD Mirror",
-      "description": "Mirror your Android phone to one HUD, cluster or iDrive screen, with a connection guide and remembered manual pairing.",
-      "version": "0.6.0",
+      "description": "Phone mirroring with native BMW menus, one HUD/cluster/iDrive destination, remembered pairing and a connection guide.",
+      "version": "0.7.0",
       "mguHmi": [
         "ID7"
       ],

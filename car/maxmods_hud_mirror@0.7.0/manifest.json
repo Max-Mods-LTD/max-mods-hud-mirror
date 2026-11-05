@@ -83,12 +83,6 @@
         "DataPowerTrain2": "s",
         "DataPowerTrain2CRC": "s"
       }
-    },
-    "de.bmw.infotainment.controlelements.FrontCCU": {
-      "instances": "1",
-      "attributes": {
-        "statusRotaryEncoderState": "s"
-      }
     }
   },
   "services": {

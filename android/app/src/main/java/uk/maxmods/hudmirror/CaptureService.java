@@ -68,6 +68,7 @@ public final class CaptureService extends Service {
         transport.radio(radio.bluetooth, radio.frequency,radio.mediaPlaying);
         CodecCapture codec=avc;
         linkStatus = radio.description() + "\n" + (codec==null?transport.description():"Hardware video · "+codec.width+"×"+codec.height+" · cap "+codec.fps+" fps · requested "+String.format(java.util.Locale.US,"%.1f",codec.bitrate/1000000.0)+" Mbps"+(codec.adaptive?"":" · restart to change bitrate"));
+        linkStatus += "\nPhone capture: "+frames.captureRate.fps()+" fps · sent: "+(server==null?0:server.wireRate.fps())+" fps";
         Inet4Address now = MainActivity.wifiAddress(CaptureService.this);
         if (now == null || !now.getHostAddress().equals(bindAddress)) { finish("Sharing stopped: Wi-Fi connection changed"); return; }
         if (SystemClock.elapsedRealtime() - startedMs >= 10 * 60 * 1000L) { finish("Session ended. Start sharing again."); return; }

@@ -2,8 +2,13 @@
 'use strict';
 const EventEmitter=require('events'),fs=require('fs'),crypto=require('crypto');
 class IdriveRenderer extends EventEmitter{
- constructor(dashboard,options){super();this.dashboard=dashboard;this.gpu=dashboard.gpu;this.options=options||{};this.closed=false;this.ref=1;this.id=201;this.visible=false;}
- connect(){if(!this.dashboard.info||!this.dashboard.info.video){this.emit('refused','video',0,'Update/start the iDrive GPU renderer first');return;}this.backend='id7';this.targets='idrive:'+Math.round(this.dashboard.width)+'x'+this.dashboard.height;this.emit('ready');}
+ constructor(host,options){super();this.host=host;this.gpu=host.gpu;this.options=options||{};this.closed=false;this.ref=1;this.id=201;this.visible=false;}
+ connect(){
+  const start=()=>{if(this.closed)return;this.gpu=this.host.gpu;if(!this.host.info||!this.host.info.video){this.emit('refused','video',0,'Update/start the iDrive GPU renderer first');return;}
+   this.backend='id7';this.targets='idrive:'+Math.round(this.host.width)+'x'+this.host.height;
+   this.lost=()=>{if(!this.closed)this.emit('disconnected');};if(this.host.on)this.host.on('disconnected',this.lost);this.emit('ready');};
+  if(this.host.ensureReady)this.host.ensureReady().then(start,e=>{if(!this.closed)this.emit('refused','video',0,e.message);});else start();
+ }
  image(opts){this.rect={x:opts.x,y:opts.y,w:opts.w,h:opts.h};this.kind='image';this.w=opts.iw;this.h=opts.ih;this.gpu.pixmap(this.id,this.w,this.h,'rgba','linear');return this.ref;}
  video(opts){this.rect={x:opts.x,y:opts.y,w:opts.w,h:opts.h};this.kind='video';this.w=opts.vw;this.h=opts.vh;this.bytes=this.w*this.h*3/2;this.slot=0;this.sequence=0;
   this.file=(this.options.directory||'/dev/shm')+'/mgu-video-maxmods-'+crypto.randomBytes(6).toString('hex');this.fd=fs.openSync(this.file,'wx',0o600);fs.ftruncateSync(this.fd,64+this.bytes*3);
@@ -17,7 +22,7 @@ class IdriveRenderer extends EventEmitter{
  }
  set(ref,opts){if(this.closed)return;let changed=false;['x','y','w','h'].forEach(k=>{if(opts[k]!==undefined&&this.rect[k]!==opts[k]){this.rect[k]=opts[k];changed=true;}});
   if(opts.visible!==undefined&&opts.visible!==this.visible){this.visible=opts.visible;changed=true;}
-  if(changed)this.dashboard.setSurface(this.visible?{kind:this.kind,id:this.id,rect:Object.assign({},this.rect),visible:true}:null);if(changed&&this.visible)this.emit('target','idrive','shown','','');}
- close(){if(this.closed)return;this.closed=true;this.dashboard.setSurface(null);if(this.kind==='video')this.gpu.video(this.id,null);if(this.fd!==undefined){fs.closeSync(this.fd);this.fd=undefined;}if(this.file)try{fs.unlinkSync(this.file);}catch(_){} }
+  if(changed)this.host.setSurface(this.visible?{kind:this.kind,id:this.id,rect:Object.assign({},this.rect),visible:true}:null);if(changed&&this.visible)this.emit('target','idrive','shown','','');}
+ close(){if(this.closed)return;this.closed=true;if(this.lost&&this.host.removeListener)this.host.removeListener('disconnected',this.lost);this.host.setSurface(null);if(this.kind==='video')this.gpu.video(this.id,null);if(this.fd!==undefined){fs.closeSync(this.fd);this.fd=undefined;}if(this.file)try{fs.unlinkSync(this.file);}catch(_){}if(this.host.release)this.host.release(); }
 }
 module.exports={IdriveRenderer};

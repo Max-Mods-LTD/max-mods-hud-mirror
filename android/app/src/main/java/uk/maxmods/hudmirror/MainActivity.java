@@ -80,7 +80,7 @@ public final class MainActivity extends Activity {
                 JSONObject r=new JSONObject(bytes.toString("UTF-8")).getJSONArray("releases").getJSONObject(0);content.addView(text("Version "+r.getString("version"),16,MUTED));JSONArray changes=r.getJSONArray("changes");for(int i=0;i<changes.length();i++){LinearLayout c=card();c.addView(text(changes.getString(i),16,Color.WHITE));}
             }catch(Exception ignored){}
         }
-        content.addView(text("MAX MODS iDrive Apps  /  v0.6.0",12,MUTED));setContentView(scroll);render();
+        content.addView(text("MAX MODS iDrive Apps  /  v0.7.0",12,MUTED));setContentView(scroll);render();
     }
     private void connectionGuide(){
         content.addView(text("Connection guide",26,Color.WHITE));

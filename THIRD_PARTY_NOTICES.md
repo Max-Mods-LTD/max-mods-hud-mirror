@@ -27,14 +27,16 @@ app against its own existing BMW SDK during installation.
 - `car/src/mgu_render_client.js`: Robert Nisipeanu/IterioDev community renderer
   client from robertnisipeanu/mgu-store, based on IterioDev's MIT-licensed
   transport (Copyright 2026 cauliflowermossgrape); original attribution retained.
-- `car/assets/brand.json`: derived DejaVu Sans glyph pixels. Bitstream/DejaVu
-  notices are in `assets/DejaVu-LICENSE.txt`, also included in the car package.
+- The app icon includes DejaVu Sans glyph pixels. Bitstream/DejaVu notices
+  are in `assets/DejaVu-LICENSE.txt`, also included in the car package. The
+  current native menus use BMW's own fonts; the old custom atlas is removed.
 - `assets/max-mods-logo.png`: official Max Mods artwork used at the director's
   request. Source/provenance in `assets/README.md`; brand rights remain with
   Max Mods. `assets/max-mods-logo-stacked.png` is the requested transparent
   two-line adaptation.
-- The FrontCCU/native focus fallback and cluster slot contention follow the
-  public Store and Waze examples. The optional GPU adapter starts a separate
+- Native RHMI menu templates/lifecycle and cluster slot contention follow
+  the public Store and Waze examples. BMW renders its own widgets; no
+  proprietary widget code, fonts or SDK is redistributed. The optional GPU adapter starts a separate
   instance of the user's installed GPL Waze-on-cluster executable from
   `robertnisipeanu/idrive-apps/native/waze-on-cluster`. That executable and
   its proprietary system libraries are not redistributed here. The adapter

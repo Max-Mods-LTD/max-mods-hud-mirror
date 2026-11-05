@@ -78,11 +78,12 @@ public class PhoneServerHarness {
         policy.radio(true,2412);check(policy.capturePercent()==100,"Bluetooth reduced spatial detail");
         check(policy.bytesPerSecond()==3L*1024*1024,"Bluetooth budget missing");
         check(policy.intervalNs(3*1024*1024)>=1000000000L,"Wire pacing missing");
+        check(policy.intervalNs(1000)<1000000L,"Socket must not impose a second JPEG frame-rate clock");
         int quality=policy.jpegQuality();
         for(int i=0;i<12;i++){now[0]+=300000000L;policy.sent(350000,100000000L);}
         check(policy.capturePercent()==100&&policy.targetFps()==60&&policy.jpegQuality()<quality,"JPEG must reduce compressed traffic before fps");
         for(int i=0;i<20;i++){now[0]+=300000000L;policy.sent(350000,100000000L);}
-        check(policy.targetFps()<60&&policy.targetFps()>=15&&policy.jpegQuality()>=75,"Sustained congestion bounds");
+        check(policy.targetFps()<60&&policy.targetFps()>=30&&policy.jpegQuality()>=75,"Sustained congestion must preserve a 30 fps requested floor");
         int low=policy.targetFps();
         for(int i=0;i<120;i++){now[0]+=40000000L;policy.sent(1000,1000000L);}
         check(policy.targetFps()>low,"Recovery never restored rate");
@@ -110,6 +111,11 @@ public class PhoneServerHarness {
         avc.setMode(TransportPolicy.QUALITY);
         for(int i=0;i<1200;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
         check(avc.avcBitrate()==3000000,"Explicit Quality budget/recovery");
+        TransportPolicy burst=new TransportPolicy(new FrameStore.Clock(){public long nanoTime(){return now[0];}});burst.setProfile("smooth");burst.radio(true,2412);
+        for(int i=0;i<200;i++){now[0]+=100000000L;burst.sent(1000,150000000L);}
+        check(burst.targetFps()==30,"JPEG requested target fell to the old 15 fps floor");
+        for(int i=0;i<600;i++){now[0]+=40000000L;burst.sent(1000,i%10==0?150000000L:1000000L);}
+        check(burst.targetFps()==60,"Isolated Bluetooth write bursts prevented rate recovery");
         FrameStore smooth=new FrameStore();smooth.configure("smooth");check(smooth.width()==576&&smooth.height()==324&&smooth.fps()==60,"Profile negotiation");
         System.out.println("PASS fixed canvas, JPEG quality before fps, audio/radio AVC budgets, bitrate floor/recovery and unchanged AVC fps target");
     }

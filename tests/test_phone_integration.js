@@ -38,6 +38,7 @@ async function command(name) {
 async function run(pin) {
     const denied = await p.request('127.0.0.1', '/v4/stream?after=0', null, null, 100);
     assert.strictEqual(denied.status, 403);
+    assert.strictEqual((await p.request('127.0.0.1','/v4/status',null,null,100)).status,403);
     const wrong = await p.request('127.0.0.1', '/v4/pair', null, pin === '00000000' ? '11111111' : '00000000', 100);
     assert.strictEqual(wrong.status, 403);
     const paired = await p.request('127.0.0.1', '/v4/pair', null, pin, 1024);
@@ -75,6 +76,7 @@ async function run(pin) {
     for (let i = 1; i < frames.length; i++) assert(frames[i].id > frames[i - 1].id);
     assert.strictEqual(errors.length, 0);
     console.log('PASS real Java -> HTTP stream -> Node decoder: ' + fps.toFixed(1) + ' fps on the host; this does not measure the car projector');
+    const liveStats=await p.stats(token);assert.strictEqual(liveStats.format,'jpeg');assert(liveStats.captureFps>=info.fps*.85&&liveStats.wireFps>=info.fps*.8);assert(liveStats.kbps>0&&liveStats.targetFps===info.fps);
     const wrongToken = await p.request('127.0.0.1', '/v4/stream?after=0', 'f'.repeat(32), null, 100);
     assert.strictEqual(wrongToken.status, 403);
     const missing = await p.request('127.0.0.1', '/anything', info.token, null, 100);

@@ -1,6 +1,6 @@
 # Phone stream protocol 4
 
-Current phone and car version is **0.6.0**, retaining protocol 4. Update both
+Current phone and car version is **0.7.0**, retaining protocol 4. Update both
 for current traffic handling and connection guides. The phone binds its selected
 private Wi-Fi IPv4 address on TCP 8476. Requests with an Origin, unsupported
 routes/body lengths or unauthorised peers/tokens are refused.
@@ -86,6 +86,22 @@ it. Hidden content, locking, expired liveness, Stop and the ten-minute limit
 clear the store. JPEG link recovery is bounded to three retries and waits for
 a new live frame. GPU disconnection/pause falls back once to JPEG.
 
+## Live diagnostics
+
+Authenticated GET /v4/status returns captureFps, wireFps, kbps, targetFps and
+format. Rates use actual publish/write events in a bounded two-second window,
+with zero after an idle interval; heartbeats never record frames. No image,
+PIN or credential appears in the reply. Car diagnostics polls only while
+visible, every two seconds. Counters describe capture/transport, not projected
+frames. A static screen can have zero new frames with live capture.
+
+JPEG writes have only a byte-budget limiter; capture owns the fps clock.
+JPEG feedback now judges short windows instead of demanding 60 consecutive
+fast writes. Isolated Bluetooth bursts no longer prevent recovery. Its
+requested rate has a 30 fps floor; actual transport can be slower. Hardware
+encoding also requests Android real-time priority and its negotiated operating
+rate. Neither is a promise about hardware throughput.
+
 ## Car output
 
 The JPEG worker accepts a uint32-LE length plus JPEG on stdin and returns a
@@ -100,8 +116,10 @@ iDrive output converts the atlas to contiguous I420 planes in a RAM-only
 /dev/shm/mgu-video-maxmods-* file. Its 64-byte MGUV v1 header names dimensions,
 three slots, sequence, selected slot, BT.601 and full range. The writer fills
 the next slot, publishes slot then sequence. mgu-render samples newest frames
-on the GPU without per-frame dashboard uploads. Close unregisters and removes
-the file. UI frames are small native rect/glyph/image/video operations.
+on the GPU without per-frame menu uploads. Close unregisters and removes
+the file. Only the separate iDrive picture page sends a small black-background plus
+image/video draw command; menus are genuine native BMW RHMI widgets. No
+font/menu atlas or custom rotary-controller input is used.
 
 The maxmods-video helper uses /run/maxmods-video/control.sock. Its bounded
 open request accepts only HUD/map, Compact/Full and the two profiles above.

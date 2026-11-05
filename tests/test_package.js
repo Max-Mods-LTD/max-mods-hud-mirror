@@ -37,7 +37,7 @@ assert.strictEqual(manifest.tree, manifest.id + '@' + manifest.version);
 const release = JSON.parse(fs.readFileSync(path.join(root, 'release_notes.json'))).releases[0];
 assert.strictEqual(release.version, manifest.version);
 const ui = JSON.parse(fs.readFileSync(path.join(root, 'car', manifest.tree, 'rhmiData/uiDescriptions/ID7/uiDescription.json')));
-const rows = Object.values(ui.containers['1'].components);
+const rows = [].concat(...Object.values(ui.containers).map(s=>Object.values(s.components)));
 assert(rows.some((r) => r.name === 'mirrorVersion' && r.rows[0].Text.value.indexOf(release.version) >= 0));
 const appNotes = require('../car/src/release_notes.js');
 assert.strictEqual(appNotes.version, release.version);
@@ -51,14 +51,21 @@ assert(rows.some((r) => r.name === 'mirrorReleaseLine1' && r.rows[0].Text.value 
 const android = fs.readFileSync(path.join(root, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
 assert(android.indexOf('android:versionName="' + release.phoneVersion + '"') >= 0);
 assert(names.some(n=>n.endsWith('assets/jpeg-decoder')));
-assert(names.some(n=>n.endsWith('assets/brand.json')));
+assert(!names.some(n=>n.endsWith('assets/brand.json')),'Native menus must not ship the custom font/logo atlas');
 assert(names.some(n=>n.endsWith('assets/decoder-source/main.c')));
 assert.strictEqual(repo.name,'MaxModsIdriveApps');
 for(const id of ['maxmods-display60','maxmods-video']){
     const tool=repo.components.find(c=>c.id===id);assert(tool&&tool.optional&&tool.kind==='tool');
     assert(!Object.prototype.hasOwnProperty.call(tool,'build'),'The Store rejects a build field on repo tools: '+id);
 }
-assert.strictEqual(ui.containers['2'].name,'ST_MaxModsDashboard');
+assert.strictEqual(ui.containers['2'].name,'ST_MaxModsVideo');
+assert(!manifest.modules.some(m=>/dashboard|gpu_canvas|brand_canvas/.test(m)));
+const xml=fs.readFileSync(path.join(root,'car',manifest.tree,'rhmiData/uiDescriptions/ID7/application.xml'),'utf8');
+assert.strictEqual((xml.match(/widget="LT_State_Wide"/g)||[]).length,8);
+assert.strictEqual((xml.match(/widget="LT_State_A4A_WelcomeApp"/g)||[]).length,1);
+assert(!permissions.proxies['de.bmw.infotainment.controlelements.FrontCCU']);
+const ids=Array.from(xml.matchAll(/<(?:container|component|layoutGroup) id="(\d+)"/g),m=>m[1]);
+assert.strictEqual(new Set(ids).size,ids.length,'Duplicate native HMI IDs');
 assert(!repo.components.some(c=>c.id==='maxmods-connect'));assert(!repo.components[0].requires['maxmods-connect']);
 assert(!manifest.modules.some(m=>/qr_pairing|qrcode/.test(m)));assert(!/android.permission.CAMERA|ScannerActivity/.test(android));
 assert(rows.some(r=>r.name==='mirrorGuide'));assert(!rows.some(r=>r.name==='mirrorQr'));assert.strictEqual(ui.containers['7'].name,'ST_MaxModsConnectionGuide');

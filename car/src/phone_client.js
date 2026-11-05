@@ -52,8 +52,8 @@ class PhoneClient {
     pair(text) {
         const p = parsePairing(text);
         return this.request(p.host, '/v4/pair', null, p.pin, 1024).then((r) => {
-            if (r.status === 404) throw new Error('Update the phone app to version 0.6.0');
-            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.6.0');
+            if (r.status === 404) throw new Error('Update the phone app to version 0.7.0');
+            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.7.0');
             return this.readInfo(p.host,r);
         });
     }
@@ -62,13 +62,18 @@ class PhoneClient {
         let data;try{data=JSON.parse(r.body.toString('utf8'));}catch(_){throw new Error('Invalid phone reply');}
         if(!/^[a-f0-9]{32}$/.test(data.token||'')||data.protocol!==4||
             !((data.width===768&&data.height===432&&data.fps===30)||(data.width===576&&data.height===324&&data.fps===60))||
-            ['jpeg','h264-annexb'].indexOf(data.format)<0)throw new Error('Update both HUD Mirror apps to 0.6.0');
+            ['jpeg','h264-annexb'].indexOf(data.format)<0)throw new Error('Update both HUD Mirror apps to 0.7.0');
         return {host,token:data.token,resume:data.resume,width:data.width,height:data.height,fps:data.fps,format:data.format};
     }
     resume(device){parsePairing(device.host+'/12345678');if(!/^[a-f0-9]{32}$/.test(device.resume))return Promise.reject(new Error('Pair the phone again'));
         return this.request(device.host,'/v4/resume',null,device.resume,2048).then(r=>this.readInfo(device.host,r));}
     prepare(pairing,codec){return this.request(pairing.host,'/v4/prepare',pairing.token,codec,2048).then(r=>{if(r.status!==200)throw new Error('Video setup ('+r.status+'): '+r.body.toString('utf8').slice(0,180));return this.readInfo(pairing.host,r);});}
     keyframe(pairing){return this.request(pairing.host,'/v4/keyframe',pairing.token,'1',128).catch(()=>{});}
+    stats(pairing){return this.request(pairing.host,'/v4/status',pairing.token,null,1024).then(r=>{
+        if(r.status!==200)throw new Error('Update the phone app for live statistics');const v=JSON.parse(r.body.toString('utf8'));
+        for(const name of ['captureFps','wireFps','kbps','targetFps'])if(typeof v[name]!=='number'||!Number.isFinite(v[name])||v[name]<0||v[name]>(name==='kbps'?1000000:240))throw new Error('Invalid phone statistics');
+        if(['jpeg','h264-annexb'].indexOf(v.format)<0)throw new Error('Invalid phone codec');return v;
+    });}
     stream(pairing, events) {
         if (this.closed) { events.error(new Error('Phone connection closed')); return; }
         let failed = false, req;

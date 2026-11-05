@@ -10,11 +10,12 @@ public final class TransportPolicy {
     private String mode=AUTO;
     private boolean bluetooth,mediaPlaying;
     private int frequency=-1,maxFps=30,fps=30,slow,fast,jpegPenalty;
+    private long jpegWindowAt;
     private int avcRate,avcSlow,avcFast;
     private long adjustedAt,avcAdjustedAt;
     public TransportPolicy(){this(new FrameStore.Clock(){public long nanoTime(){return System.nanoTime();}});}
     public TransportPolicy(FrameStore.Clock c){clock=c;}
-    public synchronized void setProfile(String p){maxFps="smooth".equals(p)?60:30;fps=maxFps;slow=fast=jpegPenalty=0;}
+    public synchronized void setProfile(String p){maxFps="smooth".equals(p)?60:30;fps=maxFps;slow=fast=jpegPenalty=0;jpegWindowAt=0;}
     public synchronized void setMode(String v){mode=BLUETOOTH.equals(v)||QUALITY.equals(v)?v:AUTO;clampAvc();}
     public synchronized void radio(boolean bt,int mhz){radio(bt,mhz,false);}
     public synchronized void radio(boolean bt,int mhz,boolean playing){bluetooth=bt;frequency=mhz;mediaPlaying=playing;clampAvc();}
@@ -32,20 +33,28 @@ public final class TransportPolicy {
     public synchronized String mode(){return mode;}
     public synchronized int jpegQuality(){return Math.max(75,(QUALITY.equals(mode)?93:audioPriority()?87:90)-jpegPenalty);}
     public synchronized long bytesPerSecond(){return QUALITY.equals(mode)?0:audioPriority()?3L*1024*1024:8L*1024*1024;}
-    public synchronized long intervalNs(int bytes){long rate=bytesPerSecond();return Math.max(1000000000L/fps,rate==0?0:((long)bytes*1000000000L+rate-1)/rate);}
+    // Capture owns the fps clock. A second socket fps clock introduces
+    // jitter/delay and drops useful frames; only the byte budget paces writes.
+    public synchronized long intervalNs(int bytes){long rate=bytesPerSecond();return rate==0?0:((long)bytes*1000000000L+rate-1)/rate;}
     public synchronized void sent(int bytes,long ns){
         long now=clock.nanoTime(),rate=bytesPerSecond(),cost=Math.max(ns,rate==0?0:(long)bytes*1000000000L/rate);
-        if(cost>1000000000L/fps*5/4){slow++;fast=0;}else{fast++;slow=0;}
-        if(slow>=4&&now-adjustedAt>500000000L){
+        if(jpegWindowAt==0)jpegWindowAt=now;
+        if(cost>1000000000L/fps*5/4)slow++;else fast++;
+        long elapsed=now-jpegWindowAt;int samples=slow+fast;
+        // Bluetooth produces short bursts. Judge a window, not an unbroken
+        // run of fast writes; a single burst must not trap the target at 15.
+        if(elapsed<1000000000L||samples<4)return;
+        if(slow*2>=samples){
             // Try smaller compressed frames before reducing frame rate.
             if(jpegPenalty<12)jpegPenalty=Math.min(12,jpegPenalty+3);
-            else fps=Math.max(15,fps-5);
-            slow=0;adjustedAt=now;
+            else fps=Math.max(30,fps-5);
+            adjustedAt=now;
         }
-        if(fast>=60&&now-adjustedAt>2000000000L){
+        if(fast*5>=samples*4&&now-adjustedAt>1500000000L){
             if(fps<maxFps)fps=Math.min(maxFps,fps+5);else jpegPenalty=Math.max(0,jpegPenalty-3);
-            fast=0;adjustedAt=now;
+            adjustedAt=now;
         }
+        slow=fast=0;jpegWindowAt=now;
     }
     private void reduceAvc(long now){
         if(now-avcAdjustedAt<500000000L)return;

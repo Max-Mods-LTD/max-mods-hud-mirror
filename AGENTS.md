@@ -13,6 +13,11 @@
   Do not claim factory speed/sign coexistence until checked on the car.
 - Keep live zero-speed/Park checks and fail-closed cleanup. Capture liveness
   and connection health are distinct from whether screen pixels changed.
+- Use BMW's native RHMI templates/widgets for car menus and controller focus.
+  Only the iDrive picture uses a GPU embed; do not paint an imitation OEM UI.
+  Menu requests must have recovery and must not block the vehicle-signal queue.
+- Capture owns the frame-rate clock. Transport may pace bytes; avoid a second
+  JPEG fps timer. Measured capture/sent/received rates must come from real frames.
 - Validate changes with the relevant car, vehicle-signal, package, stream
   and Java/Node integration checks. State the distinction between host test
   results, received fps and actual projector performance.

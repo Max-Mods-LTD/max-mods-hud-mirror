@@ -1,6 +1,6 @@
 # Max Mods iDrive Apps
 
-**HUD Mirror 0.6.0** for BMW iDrive 7, with Android companion 0.6.0.
+**HUD Mirror 0.7.0** for BMW iDrive 7, with Android companion 0.7.0.
 This source can hold more Max Mods apps in future. Its catalog name is
 **MaxModsIdriveApps**. Keep the working source URL
 **Max-Mods-LTD/max-mods-hud-mirror**, branch **main**; the GitHub repository
@@ -8,17 +8,18 @@ itself has not been renamed.
 
 ## Update and connect
 
-Version 0.6.0 adapts hardware-video bitrate to audio use and measured link
-congestion, caps frames before encoding and avoids unnecessary 720p pixels
-when the selected canvas is supported. It removes QR pairing and adds a
-connection guide to both apps. **Update both apps.** The Bluetooth/audio
-changes have passed host checks; their effect still needs a car test.
+Version 0.7.0 replaces the painted car dashboard with BMW's actual native
+RHMI list pages, buttons, text, red selection highlight and controller focus,
+using the same public templates as the Waze app in the supplied reference.
+All page resources load before entry; rejected or timed-out navigation recovers
+to the main menu. Video/frame-copy and burst-recovery changes address low fps.
+**Update both apps.** Native presentation and real car fps need a physical test.
 
 1. Keep the robertnisipeanu/idrive-apps and robertnisipeanu/mgu-store sources
    enabled. Use **Store > Settings > Check now** and update **Max Mods HUD
-   Mirror to 0.6.0**. Its GPU Video 0.1.0 dependency is an adapter; it does not
+   Mirror to 0.7.0**. Its GPU Video 0.1.0 dependency is an adapter; it does not
    install or patch Waze. Max Mods Connect is no longer required or offered.
-2. Install [Android companion 0.6.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.6.0.apk)
+2. Install [Android companion 0.7.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.7.0.apk)
    over the existing app. It uses the same update-signing certificate.
    Stop the old sharing session and pair once after updating both apps.
 3. Keep the car stationary in **P**, connect the phone to BMW Wi-Fi, and keep
@@ -32,9 +33,9 @@ changes have passed host checks; their effect still needs a car test.
    requires capture consent on the phone for each new session. The car's Start
    button can start an already-consented phone session; it cannot remotely
    approve Android's permission prompt.
-6. In **Display**, open the BMW selection menu and choose **HUD**, **Instrument
+6. In **Display settings > Destination**, choose **HUD**, **Instrument
    cluster**, or **iDrive screen**. Only one destination runs at a time.
-   Choose **Compact** or **Full screen** in its separate BMW menu. Choices
+   Choose **Compact** or **Full display** under **Picture size**. Choices
    survive reopening the app. The whole phone picture keeps its aspect ratio.
 7. Leave **Keep mirroring on other pages: On** to use Android Auto/maps on the
    main screen while HUD or cluster mirroring continues. An iDrive-screen
@@ -46,8 +47,7 @@ or stop the car's existing Waze, Android Auto or audio services.
 
 ### Connection guide
 
-Open **Setup guide** on the car's Connect page, or **Connection guide** on the
-phone. The phone guide includes Wi-Fi and Bluetooth settings shortcuts.
+Open **Connection guide** in either app. The phone guide includes Wi-Fi and Bluetooth settings shortcuts.
 Both guides use the same steps from connection_guide.json:
 
 - In iDrive, open **COM / Communication > Mobile devices**, move the controller
@@ -115,25 +115,47 @@ Audio priority uses the 1.2 Mbps ceiling; Quality allows 3 Mbps. Measured
 congestion lowers the target to a 0.6 Mbps floor, then recovers gradually.
 These are requested encoder rates, not measured output. Backlogs older than
 300 ms skip references and request an IDR. JPEG reduces compressed quality
-before lowering fps and keeps the canvas dimensions fixed. Wireless Android
+before lowering its requested fps and keeps dimensions fixed. The socket now paces only bytes; the capture worker owns the frame clock.
+Burst-tolerant windowed recovery replaces the old consecutive-write rule; the requested JPEG
+target stays at least 30, while the actual link can still deliver fewer frames.
+Native JPEG output is assembled in one bounded buffer instead of repeatedly
+copying a growing frame. Android reuses its padded-pixel buffer and hardware
+capture requests real-time encoder priority/operating rate. Wireless Android
 Auto and audio performance still require a physical test.
 
-## Interface and display behaviour
+## Native BMW menus and video page
 
-The iDrive dashboard sends GPU drawing commands for text/buttons instead of
-a full-screen software bitmap. It scales to the actual app area. The phone
-keeps its charcoal background and has a transparent **MAX / MODS** stacked
-logo, larger text, pressed feedback and a green active Start button.
+The home, display settings, destination, picture size, video/background,
+diagnostics, connection guide and update pages use BMW's `LT_State_Wide`,
+`LT_Button_1Row` and `LT_Label_1Row` widgets. The head unit supplies the fonts,
+layout, red focus/selection and rotary handling. There is no painted menu,
+custom menu font atlas, controller grab or FrontCCU subscription. The Max Mods
+logo remains in the app icon and on the phone, with its transparent background.
 
-Rotary control has native focus/action buttons and the FrontCCU fallback used
-by the Store. Display/layout/video options use BMW's own menu pages. Test
-display uses the selected destination for eight seconds. Current release
-notes are visible in both apps, with Previous/Next on the car.
+All nine page resources load before the entry point is offered. Menu clicks
+open an already-loaded page without hiding a custom surface first. Open/Back
+requests have deadlines and restore the native main menu on failure. HMI waits
+use a separate queue from speed/Park polling. Later navigation cannot be
+replaced by a late result from an earlier click.
 
-Display > Video and background options > Connection diagnostics shows the
-active video path, received/target fps, signal ages and last issue. Reconnect
-linked phone retries without entering its code. Connecting has a Cancel
-start action; codec compatibility changes apply immediately.
+Only the **iDrive picture** page uses a video embed. BMW Back or a tap on the
+picture returns to native settings. **View iDrive picture** reopens it. Other
+settings pages hide the embed while the source continues; another app covers
+it normally. HUD/cluster sessions never start that menu/video renderer, and
+closing the central output releases its connection. Force close/reset remains
+on the native main menu. Test display uses the selected destination for eight
+seconds; update notes are in **What is new**.
+
+The phone retains its dark background, transparent stacked MAX / MODS logo,
+larger type, press feedback and green sharing-active Start button.
+
+**Connection diagnostics** shows the active video path, requested/received fps,
+phone capture fps, phone sent fps, video traffic, signal ages and last issue.
+Phone statistics are polled only while that page is visible. These are actual
+published frame/write counts; capture heartbeats never create fps. A static
+screen can show zero new frames while sharing remains live. Reconnect linked
+phone retries without entering its code. Connecting can be cancelled; codec
+compatibility changes apply immediately.
 
 Compact reserves the lower HUD area; Full uses the available target rectangle.
 Cluster uses the central map target and requests its slot like Waze. It does
@@ -172,8 +194,8 @@ its RAM files. Display60 restores its own settings on uninstall.
 
 See [feature coverage](FEATURES.md), [validation](VALIDATION.md),
 [protocol](STREAM_PROTOCOL.md), [changelog](CHANGELOG.md) and
-[third-party notices](THIRD_PARTY_NOTICES.md). The preview images under
-docs/images are host renderings, not car screenshots.
+[third-party notices](THIRD_PARTY_NOTICES.md). Native menu resources are validated against the real Store packer; physical
+BMW rendering is not emulated on the host.
 
 The Store links the car's existing BMW SDK. No BMW SDK, firmware, signing key
 or proprietary donor is distributed. Earlier signed APKs remain in downloads

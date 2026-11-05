@@ -29,6 +29,8 @@ final class CodecCapture {
   bitrate=Math.max(minBitrate,Math.min(maxBitrate,policy.avcBitrate()));format.setInteger(MediaFormat.KEY_BIT_RATE,bitrate);
   format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,1);format.setInteger(MediaFormat.KEY_MAX_B_FRAMES,0);
   format.setInteger(MediaFormat.KEY_FRAME_RATE,fps);format.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER,(float)fps);
+  // Ask Android to reserve real-time encoder resources during audio playback.
+  format.setInteger(MediaFormat.KEY_PRIORITY,0);format.setFloat(MediaFormat.KEY_OPERATING_RATE,(float)fps);
   format.setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER,250000);
   codec=MediaCodec.createByCodecName(encoder);codec.setCallback(new MediaCodec.Callback(){
    public void onInputBufferAvailable(MediaCodec c,int index){}

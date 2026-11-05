@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 final class JpegEncoder {
     private Bitmap source, target;
     private Canvas canvas;
+    private ByteBuffer paddedPixels;
     private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final ByteArrayOutputStream output = new ByteArrayOutputStream(60000);
     byte[] encode(ByteBuffer pixels, int width, int height, int row, int stride, int w, int h, int quality) {
@@ -27,7 +28,8 @@ final class JpegEncoder {
         int need = row * height;
         if (pixels.remaining() >= need) source.copyPixelsFromBuffer(pixels);
         else {
-            ByteBuffer full = ByteBuffer.allocate(need); full.put(pixels); full.position(0); source.copyPixelsFromBuffer(full);
+            if(paddedPixels==null||paddedPixels.capacity()!=need)paddedPixels=ByteBuffer.allocateDirect(need);
+            paddedPixels.clear();paddedPixels.put(pixels);paddedPixels.position(0);source.copyPixelsFromBuffer(paddedPixels);
         }
         target.eraseColor(Color.BLACK);
         float scale = Math.min((float)w / width, (float)h / height);
@@ -37,5 +39,5 @@ final class JpegEncoder {
         if (!target.compress(Bitmap.CompressFormat.JPEG, quality, output)) throw new IllegalStateException("Video encoding failed");
         return output.toByteArray();
     }
-    void close() { if(source!=null)source.recycle();if(target!=null)target.recycle();source=target=null; }
+    void close() { if(source!=null)source.recycle();if(target!=null)target.recycle();source=target=null;paddedPixels=null; }
 }

@@ -8,6 +8,7 @@ const SPEED = 'de.bmw.infotainment.vehicle.Vehicle2';
 const GEAR = 'de.bmw.infrastructure.VehicleInformation';
 const turn = () => new Promise((resolve) => setImmediate(resolve));
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+async function until(fn) { const end=Date.now()+2200; while(!fn()){if(Date.now()>end)throw new Error('Vehicle signal condition timed out');await delay(10);} }
 
 function fixture() {
     const callbacks = {};
@@ -51,7 +52,7 @@ function fixture() {
         f.callbacks.powertrain({ statusGearSelectionDrive: 3 }); assert(guard.allowed());
 
         now += 2501;
-        await delay(680); // Let a real speed poll run while gear is quiet.
+        await until(()=>f.counts().speedReads>=2); // Observe a real poll, not a narrow scheduler margin.
         assert(f.counts().speedReads >= 2, 'speed still polls its supported getter');
         assert.strictEqual(f.counts().gearReads, 0, 'event-only gear must never be polled');
         assert(!guard.allowed(), 'a speed poll must not freshen a cached Park reading');
@@ -110,9 +111,10 @@ function fixture() {
     renewal.proxies[GEAR].statusGearboxDrive={subscribe:cb=>{subscriptions++;if(notifications)cb({statusActualStageDrive:'P'});return Promise.resolve(subscriptions);},unsubscribe:id=>{assert(id>0);unsubscribed++;return Promise.resolve();}};
     const renewalSignals=new VehicleSignals(renewalGuard,null,renewal.sdk);
     try{
-        await renewalSignals.start();await turn();await turn();assert(renewalGuard.allowed());realNow+=1600;await delay(780);
+        await renewalSignals.start();await turn();await turn();assert(renewalGuard.allowed());realNow+=1600;
+        await until(()=>subscriptions>=2&&unsubscribed>=1&&renewalGuard.stageAt===realNow);
         assert(subscriptions>=2&&unsubscribed>=1);assert.strictEqual(renewalGuard.stageAt,realNow);assert(renewalGuard.allowed());
-        notifications=false;const last=renewalGuard.stageAt;realNow+=3000;await delay(780);assert.strictEqual(renewalGuard.stageAt,last);assert(!renewalGuard.allowed());
+        notifications=false;const last=renewalGuard.stageAt,before=subscriptions;realNow+=3000;await until(()=>subscriptions>before);assert.strictEqual(renewalGuard.stageAt,last);assert(!renewalGuard.allowed());
         console.log('PASS quiet Park subscriptions request genuine initial events; timers never refresh a cached selector');
     }finally{await renewalSignals.close();}
 })().catch((e) => { console.error(e); process.exitCode = 1; });

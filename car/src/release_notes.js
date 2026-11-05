@@ -2,60 +2,60 @@
 // Generated from release_notes.json.
 'use strict';
 module.exports = {
-  "version": "0.6.0",
-  "phoneVersion": "0.6.0",
+  "version": "0.7.0",
+  "phoneVersion": "0.7.0",
   "changes": [
-    "Removed QR pairing from both apps. Pair once with the phone address/code; the link is remembered.",
-    "Added a connection guide in both apps: BMW Wi-Fi, its menu and password, phone setup, audio and pairing.",
-    "The phone guide has shortcuts to Wi-Fi and Bluetooth settings.",
-    "Hardware video now adapts its bitrate to audio use and measured link congestion.",
-    "Hardware capture uses the display canvas when supported, reducing work and traffic without cropping.",
-    "Added a real encoder frame-rate cap so high-refresh phones do not send more frames than requested.",
-    "Late hardware-video queues skip to a fresh keyframe instead of building up delayed playback.",
-    "JPEG congestion handling tries smaller compressed frames before reducing the frame rate.",
-    "The QR connection helper is no longer required or offered by the current source.",
-    "Update both apps to 0.6.0. Audio coexistence still needs testing on the car."
+    "Car menus now use BMW native pages, buttons, fonts, red selection and controller focus.",
+    "All menu resources load before entry. Failed or timed-out page changes recover to the main menu.",
+    "iDrive video has a separate page. Use BMW Back or tap the picture to return to native settings.",
+    "HUD and cluster sessions no longer run a custom iDrive menu renderer or controller grab.",
+    "JPEG decoding copies each output chunk once, avoiding repeated large frame-buffer allocations.",
+    "JPEG uses one capture clock and burst-tolerant recovery. Its requested rate no longer falls to 15 fps.",
+    "Hardware capture requests real-time encoder priority and the selected operating rate.",
+    "Diagnostics show phone capture, phone send and car received fps separately, plus video traffic.",
+    "BMW display, picture size, video, guide, update notes, test and reset controls remain available.",
+    "Update both apps to 0.7.0. Actual car frame rate and native menu presentation still need testing."
   ],
   "lines": [
     [
-      "Removed QR pairing from both apps. Pair once with the phone",
-      "address/code; the link is remembered."
+      "Car menus now use BMW native pages, buttons, fonts, red",
+      "selection and controller focus."
     ],
     [
-      "Added a connection guide in both apps: BMW Wi-Fi, its menu",
-      "and password, phone setup, audio and pairing."
+      "All menu resources load before entry. Failed or timed-out",
+      "page changes recover to the main menu."
     ],
     [
-      "The phone guide has shortcuts to Wi-Fi and Bluetooth",
-      "settings."
+      "iDrive video has a separate page. Use BMW Back or tap the",
+      "picture to return to native settings."
     ],
     [
-      "Hardware video now adapts its bitrate to audio use and",
-      "measured link congestion."
+      "HUD and cluster sessions no longer run a custom iDrive menu",
+      "renderer or controller grab."
     ],
     [
-      "Hardware capture uses the display canvas when supported,",
-      "reducing work and traffic without cropping."
+      "JPEG decoding copies each output chunk once, avoiding",
+      "repeated large frame-buffer allocations."
     ],
     [
-      "Added a real encoder frame-rate cap so high-refresh phones",
-      "do not send more frames than requested."
+      "JPEG uses one capture clock and burst-tolerant recovery. Its",
+      "requested rate no longer falls to 15 fps."
     ],
     [
-      "Late hardware-video queues skip to a fresh keyframe instead",
-      "of building up delayed playback."
+      "Hardware capture requests real-time encoder priority and the",
+      "selected operating rate."
     ],
     [
-      "JPEG congestion handling tries smaller compressed frames",
-      "before reducing the frame rate."
+      "Diagnostics show phone capture, phone send and car received",
+      "fps separately, plus video traffic."
     ],
     [
-      "The QR connection helper is no longer required or offered by",
-      "the current source."
+      "BMW display, picture size, video, guide, update notes, test",
+      "and reset controls remain available."
     ],
     [
-      "Update both apps to 0.6.0. Audio coexistence still needs",
-      "testing on the car."
+      "Update both apps to 0.7.0. Actual car frame rate and native",
+      "menu presentation still need testing."
     ]
   ]
 };

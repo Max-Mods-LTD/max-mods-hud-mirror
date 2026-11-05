@@ -27,6 +27,7 @@ public final class PairingServer implements Closeable {
     private String pairedPeer;
     private Thread listener;
     private Socket streamSocket;
+    public final RateMeter wireRate=new RateMeter();
 
     public PairingServer(InetAddress bind, int port, FrameStore store) throws IOException {
         this(bind, port, store, new TransportPolicy());
@@ -140,6 +141,10 @@ public final class PairingServer implements Closeable {
                 if(error!=null){reply(socket,503,"text/plain",error.getBytes(StandardCharsets.UTF_8));return;}
                 reply(socket,200,"application/json",info());return;
             }
+            if(start[0].equals("GET")&&start[1].equals("/v4/status")){
+                String value="{\"captureFps\":"+frames.captureRate.fps()+",\"wireFps\":"+wireRate.fps()+",\"kbps\":"+wireRate.kbps()+",\"targetFps\":"+transport.targetFps()+",\"format\":\""+frames.format()+"\"}";
+                reply(socket,200,"application/json",value.getBytes(StandardCharsets.US_ASCII));return;
+            }
             if(start[0].equals("POST")&&start[1].equals("/v4/keyframe")){
                 body(in,h,1,1);if(videoControl!=null)videoControl.keyframe();reply(socket,200,"text/plain",new byte[]{49});return;
             }
@@ -176,6 +181,7 @@ public final class PairingServer implements Closeable {
                     long began = System.nanoTime();
                     writeRecord(socket, out, 1, snapshot.frame.id, snapshot.frame.compressed);
                     long ended = System.nanoTime();
+                    wireRate.record(snapshot.frame.compressed.length);
                     if(avc)transport.sentAvc(snapshot.frame.compressed.length,ended-began,Math.max(0,ended-snapshot.frame.createdNs));
                     else transport.sent(snapshot.frame.compressed.length, ended - began);
                     nextPicture = began + (avc ? (long)snapshot.frame.compressed.length*1000000000L/(3*1024*1024) : transport.intervalNs(snapshot.frame.compressed.length));

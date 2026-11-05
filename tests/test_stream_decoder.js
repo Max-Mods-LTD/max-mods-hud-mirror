@@ -7,6 +7,13 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function record(kind,id,payload){payload=payload||Buffer.alloc(0);const h=Buffer.alloc(13);h.writeUInt32LE(payload.length,0);h[4]=kind;h.writeUInt32LE(id>>>0,5);h.writeUInt32LE(Math.floor(id/0x100000000),9);return Buffer.concat([h,payload]);}
 async function until(fn){for(let i=0;i<400;i++){if(fn())return;await delay(5);}throw new Error('Decode timed out');}
 (async()=>{
+ const piecewise=new JpegWorker(4,4),body=Buffer.from([...Array(24).keys()]),head=Buffer.alloc(4);head.writeUInt32LE(24);
+ let assembled,chunkError;piecewise.pending={resolve:p=>assembled=p,reject:e=>chunkError=e};
+ const wire=Buffer.concat([head,body]),concat=Buffer.concat;let repeatedCopies=0;
+ try{Buffer.concat=function(){repeatedCopies++;return concat.apply(Buffer,arguments);};for(let i=0;i<wire.length;i++)piecewise.data(wire.slice(i,i+1));}finally{Buffer.concat=concat;}
+ assert(assembled&&assembled.equals(body)&&!chunkError);assert.strictEqual(repeatedCopies,0,'Fragmented native output recopied the accumulated frame');piecewise.close();
+ const invalid=new JpegWorker(4,4);invalid.pending={resolve:()=>{throw Error('Invalid output delivered');},reject:e=>chunkError=e};const oversized=Buffer.alloc(4);oversized.writeUInt32LE(25);invalid.data(oversized);assert(invalid.closed&&chunkError);
+ console.log('PASS byte-fragmented native output copies into one bounded buffer; malformed size fails closed');
  const jpeg=fs.readFileSync(path.join(__dirname,'fixtures/frame-768x432.jpg'));
  const worker=new JpegWorker(768,432);const pixels=await worker.decode(jpeg);
  assert.strictEqual(pixels.length,BYTES);assert(pixels[0]>220&&pixels[767]>220);

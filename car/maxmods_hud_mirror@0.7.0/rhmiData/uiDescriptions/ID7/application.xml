@@ -1,82 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <application>
   <container id="1" type="state" widget="LT_State_Wide">
-    <layoutGroup id="100" name="Titlebar">
-      <component id="10" type="title"><property id="2" value="1"/></component>
-    </layoutGroup>
-    <layoutGroup id="200" name="List">
-      <property id="3" value="1"/>
+    <layoutGroup id="510" name="Titlebar"><component id="10" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="511" name="List"><property id="3" value="1"/>
       <component id="20" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="21" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="22" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="23" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="24" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="30" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="31" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="32" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="33" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="34" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="31" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="45" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="35" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="36" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="46" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="37" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="38" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="39" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="40" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="41" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="42" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
-      <component id="43" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="44" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="47" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="30" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="38" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="23" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
     </layoutGroup>
   </container>
   <container id="2" type="state" widget="LT_State_A4A_WelcomeApp">
-    <layoutGroup id="700" name="Titlebar"><component id="112" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="701" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="520" name="Titlebar"><component id="112" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="521" name="List"><property id="3" value="1"/>
       <component id="1400" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1401" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1402" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1403" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1404" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1405" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1406" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1407" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1408" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1409" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1410" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
-      <component id="1411" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
   <container id="3" type="state" widget="LT_State_Wide">
-    <layoutGroup id="800" name="Titlebar"><component id="113" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="801" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="530" name="Titlebar"><component id="113" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="531" name="List"><property id="3" value="1"/>
       <component id="1500" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1501" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1502" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
   <container id="4" type="state" widget="LT_State_Wide">
-    <layoutGroup id="900" name="Titlebar"><component id="114" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="901" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="540" name="Titlebar"><component id="114" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="541" name="List"><property id="3" value="1"/>
       <component id="1510" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1511" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
   <container id="5" type="state" widget="LT_State_Wide">
-    <layoutGroup id="1000" name="Titlebar"><component id="115" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="1001" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="550" name="Titlebar"><component id="115" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="551" name="List"><property id="3" value="1"/>
       <component id="1520" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1521" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1522" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1525" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1523" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1524" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1526" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
   <container id="6" type="state" widget="LT_State_Wide">
-    <layoutGroup id="1100" name="Titlebar"><component id="116" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="1101" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="560" name="Titlebar"><component id="116" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="561" name="List"><property id="3" value="1"/>
       <component id="1600" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1601" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1602" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1603" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1611" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1612" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1604" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1605" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1606" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
@@ -87,8 +78,9 @@
     </layoutGroup>
   </container>
   <container id="7" type="state" widget="LT_State_Wide">
-    <layoutGroup id="1200" name="Titlebar"><component id="117" type="title"><property id="2" value="1"/></component></layoutGroup>
-    <layoutGroup id="1201" name="List"><property id="3" value="1"/>
+    <property id="9" value="1"/>
+    <layoutGroup id="570" name="Titlebar"><component id="117" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="571" name="List"><property id="3" value="1"/>
       <component id="1700" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1701" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
       <component id="1702" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
@@ -97,6 +89,28 @@
       <component id="1710" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1711" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
       <component id="1712" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+    </layoutGroup>
+  </container>
+  <container id="8" type="state" widget="LT_State_Wide">
+    <property id="9" value="1"/>
+    <layoutGroup id="580" name="Titlebar"><component id="118" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="581" name="List"><property id="3" value="1"/>
+      <component id="1800" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1801" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1802" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1803" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+    </layoutGroup>
+  </container>
+  <container id="9" type="state" widget="LT_State_Wide">
+    <property id="9" value="1"/>
+    <layoutGroup id="590" name="Titlebar"><component id="119" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="591" name="List"><property id="3" value="1"/>
+      <component id="40" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="41" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="42" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="43" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="44" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1900" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
 </application>

@@ -16,3 +16,12 @@ try{
  const settingsFile=path.join(dir,'settings.json'),settings=new SavedSettings(settingsFile);settings.save({target:'idrive',layout:'full',background:false,hardware:false});assert.strictEqual(new SavedSettings(settingsFile).value.target,'idrive');assert.strictEqual(fs.statSync(settingsFile).mode&0o777,0o600);
  console.log('PASS iDrive I420 header/planes/slot publication, layout updates without per-frame UI rebuild, cleanup and private remembered pairing/display choices');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
+// Stopping while the video-only host is starting must not resurrect output.
+(async()=>{
+ const EventEmitter=require('events');let deliver,ready=0,releases=0;
+ const host=new EventEmitter();Object.assign(host,{width:1440,height:480,info:{video:true},gpu:{},ensureReady:()=>new Promise(r=>deliver=r),setSurface(){},release(){releases++;}});
+ const r=new IdriveRenderer(host);r.on('ready',()=>ready++);r.connect();r.close();deliver();await new Promise(r=>setImmediate(r));assert.strictEqual(ready,0);assert.strictEqual(releases,1);
+ const active=new EventEmitter();Object.assign(active,{width:1440,height:480,info:{video:true},gpu:{},ensureReady:()=>Promise.resolve(),setSurface(){},release(){}});
+ const current=new IdriveRenderer(active);let lost=0;current.on('disconnected',()=>lost++);current.connect();await new Promise(r=>setImmediate(r));active.emit('disconnected');assert.strictEqual(lost,1);current.close();assert.strictEqual(active.listenerCount('disconnected'),0);
+ console.log('PASS asynchronous iDrive startup cancellation and renderer-loss cleanup');
+})().catch(e=>{console.error(e);process.exitCode=1;});

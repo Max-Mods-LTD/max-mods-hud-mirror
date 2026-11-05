@@ -7,7 +7,8 @@ const fs = require('fs');
 class JpegWorker {
     constructor(width, height) {
         this.bytes = width * height * 3 / 2;
-        this.child = null; this.pending = null; this.buffer = Buffer.alloc(0); this.closed = false;
+        this.child = null; this.pending = null; this.header = Buffer.alloc(4); this.headerUsed = 0;
+        this.output = null; this.outputUsed = 0; this.closed = false;
     }
     decode(payload) {
         if (this.closed || this.pending) return Promise.reject(new Error('JPEG decoder unavailable'));
@@ -25,7 +26,7 @@ class JpegWorker {
                 this.child.stdout.on('data', (b) => this.data(b));
             }
             const head = Buffer.alloc(4); head.writeUInt32LE(payload.length, 0);
-            this.child.stdin.write(head); this.child.stdin.write(payload);
+            this.child.stdin.cork(); this.child.stdin.write(head); this.child.stdin.write(payload); this.child.stdin.uncork();
         });
     }
     executable() {
@@ -49,20 +50,28 @@ class JpegWorker {
     }
     data(b) {
         if (this.closed) return;
-        this.buffer = Buffer.concat([this.buffer, b]);
-        if (this.buffer.length > this.bytes + 4 || (this.buffer.length >= 4 && this.buffer.readUInt32LE(0) !== this.bytes)) {
+        if (!this.pending || this.headerUsed + this.outputUsed + b.length > this.bytes + 4) {
             this.fail(new Error('Invalid decoded video size')); return;
         }
-        if (this.buffer.length === this.bytes + 4) {
-            const p = this.pending, pixels = this.buffer.slice(4);
-            this.pending = null; this.buffer = Buffer.alloc(0); clearTimeout(this.timer);
+        let at = 0;
+        if (this.headerUsed < 4) {
+            const n = Math.min(4 - this.headerUsed, b.length); b.copy(this.header, this.headerUsed, 0, n);
+            this.headerUsed += n; at += n;
+            if (this.headerUsed < 4) return;
+            if (this.header.readUInt32LE(0) !== this.bytes) { this.fail(new Error('Invalid decoded video size')); return; }
+            this.output = Buffer.allocUnsafe(this.bytes);
+        }
+        b.copy(this.output, this.outputUsed, at); this.outputUsed += b.length - at;
+        if (this.outputUsed === this.bytes) {
+            const p = this.pending, pixels = this.output;
+            this.pending = null; this.output = null; this.headerUsed = this.outputUsed = 0; clearTimeout(this.timer);
             if (!p) { this.fail(new Error('Unexpected decoded frame')); return; }
             p.resolve(pixels);
         }
     }
     fail(e) { this.close(e); }
     close(error) {
-        this.closed = true; clearTimeout(this.timer); this.buffer = Buffer.alloc(0);
+        this.closed = true; clearTimeout(this.timer); this.output = null; this.headerUsed = this.outputUsed = 0;
         if (this.child) this.child.kill(); else this.cleanup(); this.child = null;
         const p = this.pending; this.pending = null;
         if (p) p.reject(error || new Error('Video decoder closed'));

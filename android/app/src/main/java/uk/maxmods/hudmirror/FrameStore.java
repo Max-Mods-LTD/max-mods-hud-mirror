@@ -26,7 +26,7 @@ public final class FrameStore {
         if(stopped||!visible||!format.equals("h264-annexb"))return;
         Frame next=new Frame(bytes.clone(),++counter,clock.nanoTime());encoded.addLast(next);encodedBytes+=bytes.length;
         while(encoded.size()>12||encodedBytes>2*1024*1024)encodedBytes-=encoded.removeFirst().compressed.length;
-        frame=next;version++;notifyAll();
+        frame=next;captureRate.record(bytes.length);version++;notifyAll();
     }
     public synchronized void configure(String profile) {
         if (counter != 0) throw new IllegalStateException("Restart sharing to change quality");
@@ -41,7 +41,7 @@ public final class FrameStore {
             (jpeg[0] & 255) != 255 || (jpeg[1] & 255) != 216) throw new IllegalArgumentException("Invalid JPEG frame");
         synchronized (this) {
             if (stopped || !visible || !format.equals("jpeg")) return;
-            frame = new Frame(jpeg.clone(), ++counter, clock.nanoTime()); version++; notifyAll();
+            frame = new Frame(jpeg.clone(), ++counter, clock.nanoTime()); captureRate.record(jpeg.length); version++; notifyAll();
         }
     }
     public static final long LIVENESS_MS = 2500;
@@ -59,11 +59,12 @@ public final class FrameStore {
         Snapshot(String s, Frame f, long v) { state = s; frame = f; version = v; }
     }
     private final Clock clock;
+    public final RateMeter captureRate;
     private Frame frame;
     private long counter, version, aliveAt;
     private boolean alive, visible = true, stopped;
     public FrameStore() { this(new Clock() { public long nanoTime() { return System.nanoTime(); } }); }
-    public FrameStore(Clock c) { clock = c; }
+    public FrameStore(Clock c) { clock = c; captureRate=new RateMeter(c); }
     // Called by the capture worker only after checking the projection/display.
     // HTTP requests never renew this deadline or the picture's capture time.
     public synchronized void heartbeat() { if (!stopped) { alive = true; aliveAt = clock.nanoTime(); } }
@@ -89,5 +90,5 @@ public final class FrameStore {
     public synchronized void awaitChange(long seen, long ms) throws InterruptedException {
         if (!stopped && seen == version && ms > 0) wait(ms);
     }
-    public synchronized void clear() { stopped = true; frame = null; encoded.clear();encodedBytes=0;alive = false; version++; notifyAll(); }
+    public synchronized void clear() { stopped = true; frame = null; encoded.clear();encodedBytes=0;alive = false; captureRate.clear(); version++; notifyAll(); }
 }

@@ -1,133 +1,135 @@
-# Validation — HUD Mirror 0.6.0
+# Validation — HUD Mirror 0.7.0
 
 Host checks completed 5 November 2026. These are source/package, protocol and
-host rendering checks, not an MGU emulator or a physical phone/car benchmark.
+workflow checks, not an MGU emulator or a physical phone/car benchmark.
 
-## Current release
+## Native BMW interface and black-screen recovery
 
-- Removed the car QR listener/generator and Android scanner/connector, camera
-  permission and ZXing build dependency. Current catalog contains three
-  entries: HUD Mirror 0.6.0, GPU Video 0.1.0 and Display60 0.1.0. Connect is
-  neither listed nor required; its historical uninstall/rollback source remains.
-- Both apps use connection_guide.json for the BMW Wi-Fi menu/password, Samsung
-  connection, no-Internet prompt, sound route, manual pairing and audio-priority
-  steps. Car guide has native Previous/Next/Back actions; phone has settings
-  shortcuts. Physical menu labels vary by equipment/software.
-- Pure-Java policy checks cover audio detected without a Bluetooth output,
-  shared/unknown/5 GHz budgets, manual modes, congestion floor and recovery.
-  AVC feedback changes bitrate without applying JPEG's fps limiter. JPEG
-  reduces compressed quality before fps and restores both after clear writes.
-- AVC backlog tests preserve the newest unit's real sequence/capture time,
-  discard only aged multiple pending references and never renew capture
-  liveness. Hidden, stopped and expired capture remain blocked.
-- Real Java HTTP -> Node AVC check uses synthetic NALs: delayed references
-  are discarded; the car requests a fresh IDR; deltas remain ordered; hiding
-  invalidates references and requires another IDR; terminal stop closes output.
-  This does not execute a hardware decoder or simulate RF interference.
-- API-35 Android compile checks the selected-canvas encoder configuration,
-  float MAX_FPS_TO_ENCODER and live VIDEO_BITRATE control. Actual driver
-  acceptance, bitrate output and radio behaviour need the phone/car.
+The supplied five-second video shows Waze's native BMW list page. The current
+app uses the same public RHMI template/widget family: eight LT_State_Wide
+menu pages, LT_Button_1Row buttons and LT_Label_1Row text. BMW supplies fonts,
+layout, red selection, rotary focus and Back. A ninth WelcomeApp page embeds
+only the iDrive picture. No BMW SDK, fonts or proprietary widget code is shipped.
 
-## Runtime and packaging checks
+The custom dashboard/font atlas/controller grab and FrontCCU subscription are
+removed. HUD/cluster sessions never connect to a menu/video GPU client. Native
+menu resources load before offering entry; clicking a menu does not hide a
+custom surface and wait for lazy resource loading.
 
-- **21 car controller cases**: zero speed/Park, invalid/stale data, late
-  callbacks, stopped/hidden capture, bounded recovery, all three destinations,
-  old-output release before new output, whole-picture geometry, cluster slot
-  contention, cancellation during codec setup, immediate compatibility
-  switching, GPU-to-JPEG fallback and cleanup despite a failed hide command.
-- **Six signal groups**: both selector fields, changing DataPowerTrain2CRC,
-  speed polling, quiet-field subscription renewal with real notifications,
-  no timer/cached Park refresh, unavailable interfaces and shutdown races.
-  SDK values are mocked; no live BMW reading was observed here.
-- **Lifecycle / linked start**: hiding pages, foreground-only mode, movement
-  while hidden, native controller/focus bindings, OEM menus/diagnostics, one
-  Start after first pairing, Stop suppression for the same capture token,
-  Park-gated pending start, reconnect, own-resource reset and guide navigation.
-- **GPU dashboard**: actual embed-box scaling, draw-command/resource bounds,
-  1024/1440-wide layouts, transparent logo, rotary/native focus, release notes,
-  Setup guide action, no QR controls and controls retained during video updates.
-  No full-screen software UI bitmap upload. Inspected real-command previews
-  are in docs/images; these are host renderings, not BMW screenshots.
-- **iDrive surface**: MGUV header/slots/sequence, contiguous I420 planes,
-  live layout without per-frame UI rebuild, RAM-file removal, private saved
-  credentials/preferences and Forget behaviour.
-- **GPU adapter / FIFO**: fragmented replies/status, target validation, real
-  capture-only lease renewal, ordered/bounded writes, exit acknowledgement,
-  single owned decoder, disconnect/expiry cleanup and abandoned-session cleanup.
-  Real host FIFO checks delayed-reader startup without a blocking open,
-  ordered large writes and cancellable pipe cleanup.
-- **Native hardware decoding was not executed.** Helper checks use mock
-  children and TCP framing stand-ins because this host refuses Unix-socket
-  binds. BMW systemd, DRI permissions, installed Waze, MSDK/VAAPI, compositor
-  and target ownership are not verified by these checks.
-- **JPEG/native stream**: real musl-static JPEG worker, colors/geometry,
-  malformed inputs, fragmentation/bounds, one latest waiting picture, hidden
-  decode cancellation and executable fallback for old Store archives.
-- **Java storage/encoding**: immutable frames, static capture liveness,
-  expiry/hidden/stop, portrait/landscape fit and padded RGBA rows. Annex B
-  checks reject malformed NALs and preserve bounded reference order.
-- **Real Java server -> HTTP -> Node/native JPEG**: 29.5 received fps for a
-  synthetic 30-fps producer; 56.9 for a 60-fps producer. Received fps is not
-  phone capture or projector fps. Token/resume checks, codec fallback,
-  keyframe route, pairing budget, static screen, hidden/visible, connection
-  replacement and terminal stop passed. The first concurrent build/test run
-  missed the Sharp rate and signal-poll timing assertions; both passed in
-  isolation without changing assertions or production signal code. These
-  short host timing checks are sensitive to competing CPU work.
-- **Display60**: reversible/idempotent override, preserving later edits,
-  rollback and symlink refusal; no real car renderer restart. Legacy Connect
-  cleanup/injection/lease checks still pass; current apps do not use it.
-- **Actual Store source/packer/planner**: all three current entries parsed
-  with no skips, GPU Video installed/upgraded before the app, correct file
-  checksums/permissions. Regression reproduces the missing-helper failure
-  when invalid build metadata is added to tools. Checked with upstream
-  ee34705eb3e682949acaf9106155a740f1012982, updater 0.8.21.
-- **Car package**: source-only module link using made-up SDK stubs, Node
-  syntax, current native UI/metadata, assets/decoder source/licenses,
-  executable bits and read-only vehicle declarations.
-- **Android**: API-35 compile, API-26+ DEX, alignment and v2/v3 signatures;
-  same update certificate as earlier releases. Current guide/notes are in
-  the APK; no ScannerActivity, QrConnector or ZXing classes. Hardware AVC
-  requires Android 12L+ for uniform whole-screen fit; older phones use JPEG.
+Host lifecycle checks use the actual generated UI schema and verify:
 
-## Physical checks still needed
+- All nine pages load before entry; the entry maps to the native main page.
+- Native display/layout actions, saved settings, guide and update notes.
+- Rejected or never-settled opens and failed Back requests recover to the
+  native main menu and release navigation state. A late JavaScript completion
+  cannot replace a newer navigation result.
+- HMI requests do not hold the vehicle-signals native queue; Park/speed work
+  remains independent even if a menu request never answers.
+- BMW Back / picture tap returns from video; loss/hidden picture returns to
+  native controls instead of leaving a blank picture page.
+- Background/foreground behaviour, motion stop, linked one-Start, suppression
+  after Stop, genuine Park for pending start and own-resource reset remain.
 
-Update acceptance; capture/rotation/consent; genuine powertrain CRC cadence
-and quiet-field renewal; native controller navigation/guide presentation;
-installed decoder/GPU permissions; thermal/radio behaviour and audio with
-Bluetooth or wireless Android Auto; background lifecycle; HUD/map/iDrive
-ownership; picture detail, real rendered fps and all phone edges; BMW speed,
-signs, gauges and warnings.
+The video-only host checks lazy connection, actual embed sizing, 13-word video
+commands, no controller grab, touch/Back, hide/release, disconnect and startup
+timeout. iDrive renderer tests check asynchronous startup cancellation and
+renderer-loss listener cleanup, plus I420/MGUV planes, slots, sequence, live
+layout without per-frame menu rebuild, private settings and RAM-file removal.
+Physical native rendering/rotary/Back and failed-menu behaviour need car tests.
 
-The user now reports smooth streaming until audio/Bluetooth is involved.
-That is partial physical evidence for the prior build. The 0.6.0 audio changes
-have not been tested on the car here; do not describe them as car-verified
-fixes or promise 60 fps. Earlier QR/cluster and stale-signal faults also need
-physical regression checks. Video remains stationary/Park-only. Lock/force
-stop, Wi-Fi address changes, capture expiry and ten-minute sessions end sharing.
+## Frame rate and audio handling
+
+- JPEG native output now copies chunks into one bounded frame buffer instead
+  of repeatedly concatenating all accumulated bytes. Byte-at-a-time header/
+  payload tests prove reconstruction without Buffer.concat, correct bounds
+  and fail-closed malformed sizes. The real static JPEG worker still passes
+  colors, portrait/landscape geometry, malformed data and permission fallback.
+- JPEG capture owns the fps clock; the socket paces only its byte budget.
+  Tests verify that a small write does not acquire another frame-period wait.
+- Congestion still reduces JPEG quality before requested fps. Requested fps
+  no longer drops below 30. Windowed recovery reaches 60 despite periodic
+  Bluetooth-like slow-write bursts that defeat a consecutive-fast-write rule.
+  Actual link throughput can remain below that requested rate.
+- Android reuses its padded-pixel copy buffer; hardware AVC requests real-time
+  priority and its negotiated operating rate. API-35 compilation checks the
+  configuration; driver acceptance and thermal/RF effects require the phone.
+- Prior audio-aware AVC ceilings, adaptive bitrate/floor/recovery, single
+  encoder input cap, whole-picture fit and age-bounded keyframe recovery stay.
+  Annex B / bounded reference order / immutable capture timestamps / capture
+  liveness / hidden/stopped cleanup checks pass. No hardware decoder ran here.
+- Authenticated /v4/status reports real capture, wire fps and video kbit/s.
+  Bounded counters, idle/stop clearing and heartbeat-without-fps tests pass.
+  Unauthenticated status is refused; real HTTP/Node checks validate counters
+  during both Sharp and Smooth playback. Stats polling stops off the visible
+  diagnostics page. Rates describe published/sent/received frames, not projection.
+- Real Java HTTP -> Node/native JPEG received 29.5 fps from a synthetic 30-fps
+  producer and 57.5 from a 60-fps producer after the final socket-clock change.
+  Token/resume checks, still-screen liveness, hidden/visible, peer budgets,
+  connection replacement and terminal stop pass. Static content is not sent
+  repeatedly merely to increase the displayed rate.
+- Real Java HTTP -> Node AVC checks synthetic NALs: delayed references skipped,
+  a car-requested IDR, ordered deltas, hidden-reference reset and terminal stop.
+  This is transport validation, not a hardware decode or radio simulation.
+
+## Other regression checks
+
+- 21 car controller cases: fresh zero speed/Park, stale/invalid signals, late
+  frames, renderer cleanup, bounded retries, one destination at a time,
+  old-output release before new output, geometry, codec cancellation/fallback.
+- Six signal groups: both selector fields, CRC events, actual speed polls,
+  quiet subscription renewals, missing interfaces and shutdown races. Runtime
+  signal code is unchanged. Tests now wait for bounded observable poll/renew
+  events rather than fixed 80 ms scheduler margins; the no-notification case
+  verifies a real renewal happened without refreshing cached Park.
+- GPU helper/FIFO: fragmented replies/status, genuine capture-only lease,
+  ordered/bounded nonblocking writes, exit acknowledgement, single owned
+  decoder, disconnect/expiry cleanup and abandoned-session cleanup. Host
+  helpers use mock children/TCP stand-ins; BMW Unix sockets, DRI/systemd,
+  installed Waze/MSDK/VAAPI and compositor ownership remain unverified here.
+- Display60 reversible/idempotent override and rollback; legacy Connect
+  cleanup/injection/lease checks pass. Current apps do not use QR or Connect.
+- Actual upstream Store reader/packer/planner lists all three current entries,
+  installs/upgrades GPU Video before the app and rejects the old invalid tool
+  build metadata. Checked with ee34705eb3e682949acaf9106155a740f1012982,
+  updater 0.8.21. Source-only SDK link uses made-up stubs, not BMW code.
+- Package checks validate native widgets, unique HMI IDs, module syntax,
+  current metadata/notes, no custom atlas/dashboard, decoder source/licenses,
+  executable mode, no FrontCCU declaration and read-only vehicle permissions.
+- Android API-35 compile / API-26+ DEX, zip alignment, v2/v3 signing and same
+  update certificate. APK contains current notes/guide/rate counters and no
+  scanner, QR connector, camera permission or ZXing classes.
+
+## Physical evidence and remaining checks
+
+The user reports Bluetooth/video is much better in 0.6.0 but drops to roughly
+9 fps and settles near 15; opening picture/settings can leave a black screen.
+That is evidence about the prior build. No physical 0.7.0 result is claimed.
+
+Update acceptance, native layout/controller/Back, menu recovery while playing,
+Android capture/rotation/consent, encoder hints, real RF/audio/thermal behaviour,
+background Android Auto, decoder compatibility, HUD/cluster/iDrive ownership,
+actual rendered fps, all picture edges and BMW speed/sign/gauge visibility
+still need the car. A 60 Hz clock or a requested rate is not a 60 fps guarantee.
+Stationary/Park and fail-closed cleanup remain; no driving waiver was added.
 
 ## Android artifact
 
-- File: downloads/Max_Mods_HUD_Mirror_Android_v0.6.0.apk
-- Version code: 6
-- Bytes: 156341
-- SHA-256: b47fb00a781ff585537a8ec9c2f35a82bd915584cc34e0e9a71290d085b41f50
-- Update certificate SHA-256:
+- downloads/Max_Mods_HUD_Mirror_Android_v0.7.0.apk
+- Version code: 7; bytes: 156341
+- SHA-256: 0af7bd4bda3616d76921ae74d144d2925c2a0a10ff2c6c13dea8e16f77c699a0
+- Certificate SHA-256:
   6ff47774fbd873410db97aba2e76d9d460dcf271db288845bc85376dce3d7903
 
 ## Reproduce
 
-Run Node checks in tests/test_car.js, test_vehicle_signals.js,
-test_app_lifecycle.js, test_stream_decoder.js, test_display60.js,
-test_dashboard.js, test_idrive_renderer.js, test_gpu_video_renderer.js,
-test_gpu_fifo.js, test_video_helper.js and test_package.js. Also run
-legacy test_connect.js. test_store_source.js needs MGU_STORE_CHECKOUT.
+Run Node test_car, test_vehicle_signals, test_app_lifecycle, test_native_video,
+test_idrive_renderer, test_stream_decoder, test_gpu_video_renderer,
+test_gpu_fifo, test_video_helper, test_display60, test_connect and test_package
+under tests/. test_store_source.js also needs MGU_STORE_CHECKOUT.
 
-Compile PhoneServerHarness.java / AvcStoreHarness.java with FrameStore,
-FrameEncoder, AnnexB, PairingServer and TransportPolicy into build/phone-tests.
-Run PhoneServerHarness store-test and uk.maxmods.hudmirror.AvcStoreHarness,
-then test_avc_integration.js, test_phone_integration.js and again with smooth.
-Do not run the port-8476 integration checks concurrently. Run timing checks
-without a simultaneous APK compilation. tools/render_dashboard_preview.py
-regenerates real-command previews. APK instructions: tools/build_android.py.
-The builder refuses to replace a missing update key when releases exist.
+Compile FrameStore, FrameEncoder, TransportPolicy, RateMeter, PairingServer,
+AnnexB and the Java harnesses into build/phone-tests. Run PhoneServerHarness
+store-test, AvcStoreHarness and RateMeterHarness. Then run test_avc_integration,
+test_phone_integration and test_phone_integration smooth sequentially (same
+port 8476). Avoid competing builds during short timing checks.
+Build APK with tools/build_android.py and the existing private update key.

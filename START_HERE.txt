@@ -1,14 +1,15 @@
-MAX MODS iDrive Apps — HUD Mirror 0.6.0
+MAX MODS iDrive Apps — HUD Mirror 0.7.0
 
-Update both apps. This release improves video/audio traffic handling, removes
-QR pairing and adds a connection guide. Bluetooth performance needs a car test.
+Update both apps. This release uses BMW's actual native menus and buttons,
+adds recovery from failed page changes and improves frame-copy/rate handling.
+The new UI and car display frame rate still need a physical test.
 
-1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.6.0.
+1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.7.0.
    GPU Video 0.1.0 remains a dependency; Max Mods Connect is no longer needed.
-2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.6.0.apk over the phone app.
+2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.7.0.apk over the phone app.
    Stop the old sharing session. The APK uses the existing update certificate.
 3. Park in P. Keep your working Bluetooth / Android Auto sound connection.
-4. Car Connect page > Setup guide, or phone > Connection guide, explains:
+4. Car or phone > Connection guide, explains:
    iDrive COM / Communication > Mobile devices > right > Settings > Wi-Fi On.
    New device > Internet, apps shows the BMW network/password if equipped.
    Some cars show these under Mobile devices > Settings; labels vary.
@@ -27,8 +28,8 @@ QR pairing and adds a connection guide. Bluetooth performance needs a car test.
    factory 5 GHz option may help if your BMW offers it; the app does not
    change radio channels or audio routes. Local Wi-Fi and Internet data for
    online videos are separate connections/services.
-10. Car Display > destination box: HUD / instrument cluster / iDrive screen.
-    Only one runs at once. BMW menus choose Compact / Full and video options.
+10. Car Display settings > Destination: HUD / instrument cluster / iDrive screen.
+    Only one runs at once. Picture size chooses Compact / Full; video options have their own page.
 11. Keep mirroring on other pages: On lets HUD/cluster continue while you use
     Android Auto on the main screen. iDrive video uses this app's own page.
 12. Phone > Display > video quality: Sharp 30 / Smooth 60 fps target.
@@ -38,8 +39,12 @@ QR pairing and adds a connection guide. Bluetooth performance needs a car test.
     Waze decoder. Missing/failed hardware falls back to JPEG. It does not
     install Waze or change its firmware/Android Auto patches.
 14. Force close exits this app and its output. Reopen to reconnect.
-    Display > Video and background options > Connection diagnostics shows
-    the decoder, fps, signal ages and last issue. Updates lists the changes.
+    Car > Connection diagnostics shows phone capture/sent and car received fps,
+    decoder, traffic, signal ages and last issue. What is new lists changes.
+15. The car menus use BMW controls, fonts, layout and red selection highlight.
+    For iDrive video, BMW Back or tapping the picture returns to settings.
+    View iDrive picture reopens it. HUD/cluster sessions keep native menus
+    available without starting a custom menu renderer.
 
 A 60 Hz clock is not a guarantee of 60 fps. Test actual picture quality,
 frame rate, phone edges and BMW speed/sign/gauge visibility. Park-only.

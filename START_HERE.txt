@@ -1,41 +1,50 @@
-MAX MODS iDrive Apps — HUD Mirror 0.5.1
+MAX MODS iDrive Apps — HUD Mirror 0.6.0
 
-0. Missing Connect error? This 0.5.1 car-only fix makes all helpers available.
-   Keep Android 0.5.0 if already installed. No phone update needed.
+Update both apps. This release improves video/audio traffic handling, removes
+QR pairing and adds a connection guide. Bluetooth performance needs a car test.
 
-1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.5.1.
-   Its dependencies include Connect 0.2.0 and GPU Video 0.1.0.
-2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.5.0.apk over the phone app.
+1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.6.0.
+   GPU Video 0.1.0 remains a dependency; Max Mods Connect is no longer needed.
+2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.6.0.apk over the phone app.
+   Stop the old sharing session. The APK uses the existing update certificate.
 3. Park in P. Keep your working Bluetooth / Android Auto sound connection.
-4. Connect the phone to BMW Wi-Fi. Phone > Start sharing > Allow.
-5. Car > Pair with QR. Phone > Scan car QR. The selected display starts.
-6. Later sessions: start sharing on the linked phone; no second Start needed.
-   Android still requires its capture permission. A changed phone IP needs pairing.
-7. Car > Display > destination box: HUD / instrument cluster / iDrive screen.
-   Only one runs at once. BMW menus also choose Compact / Full and video options.
-8. Keep mirroring on other pages: On lets HUD/cluster continue while you use
-   Android Auto on the main screen. iDrive-screen video uses the mirror app page.
-9. Phone > Display > Choose video quality: Sharp 30 / Smooth 60 fps target.
-   Stop sharing before changing it. Optional Display60 enables the shared
-   renderer's 60 fps clock; install while other display apps are stopped.
-10. Automatic GPU mode uses a separate instance of the already-installed,
-    compatible Waze decoder. Missing/failed hardware falls back to JPEG.
-    The adapter does not install Waze or modify its firmware/AA patches.
-11. Force close exits only this app and its output. Reopen to reconnect.
-12. Display > Video and background options > Connection diagnostics shows
-    decoder/fps/signal ages/last issue and offers Reconnect linked phone.
-    Updates in both apps lists this version's changes.
+4. Car Connect page > Setup guide, or phone > Connection guide, explains:
+   iDrive COM / Communication > Mobile devices > right > Settings > Wi-Fi On.
+   New device > Internet, apps shows the BMW network/password if equipped.
+   Some cars show these under Mobile devices > Settings; labels vary.
+5. Samsung Settings > Connections > Wi-Fi > join the BMW network.
+   Choose Stay connected if it has no Internet. If Android Auto already has
+   a working BMW Wi-Fi connection, keep it. Do not use garage Wi-Fi instead.
+6. Sound: enable BMW Bluetooth Media audio, then MEDIA / Radio in the car,
+   or use the existing Android Auto sound route. Wi-Fi carries the picture.
+7. Phone > Start sharing > approve the entire screen.
+   Car > Pair phone > enter the phone address/code exactly, with the slash.
+   This is not the BMW Wi-Fi password. QR scanning has been removed.
+8. Later sessions: start sharing on the linked phone; no second Start needed.
+   Android capture consent still applies. A changed phone IP needs pairing.
+9. If sound slows video: phone > Display > Sound coexistence > Audio priority.
+   Auto also adapts hardware bitrate to audio and measured congestion. A
+   factory 5 GHz option may help if your BMW offers it; the app does not
+   change radio channels or audio routes. Local Wi-Fi and Internet data for
+   online videos are separate connections/services.
+10. Car Display > destination box: HUD / instrument cluster / iDrive screen.
+    Only one runs at once. BMW menus choose Compact / Full and video options.
+11. Keep mirroring on other pages: On lets HUD/cluster continue while you use
+    Android Auto on the main screen. iDrive video uses this app's own page.
+12. Phone > Display > video quality: Sharp 30 / Smooth 60 fps target.
+    Stop sharing before changing it. Optional Display60 requests the shared
+    renderer's 60 fps clock; install with other display apps stopped.
+13. Automatic GPU uses a separate instance of an already-installed compatible
+    Waze decoder. Missing/failed hardware falls back to JPEG. It does not
+    install Waze or change its firmware/Android Auto patches.
+14. Force close exits this app and its output. Reopen to reconnect.
+    Display > Video and background options > Connection diagnostics shows
+    the decoder, fps, signal ages and last issue. Updates lists the changes.
 
-GPU decoding, QR on the BMW network, cluster slot ownership and actual display
-frame rate still require a car test. Host link results: 29.0 / 57.5 fps.
-A 60 Hz clock is not a guarantee of 60 fps. Video remains Park-only.
+A 60 Hz clock is not a guarantee of 60 fps. Test actual picture quality,
+frame rate, phone edges and BMW speed/sign/gauge visibility. Park-only.
+If Automatic GPU fails, choose JPEG compatibility. Use Forget linked car
+on the phone to reset its saved reconnect credential.
 
-QR fails? Show a fresh QR, check Connect 0.2.0 and use the same BMW Wi-Fi.
-The new QR offers matching local addresses and waits for helper startup.
-Pair manually remains available. If Automatic GPU fails, choose JPEG compatibility.
-Use Forget linked car on the phone to reset its reconnect credential.
-
-Current source, main branch:
-  Max-Mods-LTD/max-mods-hud-mirror
-
-Catalog name: MaxModsIdriveApps. The GitHub URL itself is not renamed yet.
+Current source, main branch: Max-Mods-LTD/max-mods-hud-mirror
+Catalog name: MaxModsIdriveApps. The GitHub URL itself has not been renamed.

@@ -5,19 +5,19 @@ const OnlineApp=require('oap-sdk/src/core/OnlineApp.js'),logging=require('oap-sd
 const {spell}=require('./speller.js'),{ParkGuard}=require('./park_guard.js');
 const {VehicleSignals,nativeTick,withSignalTimeout}=require('./vehicle_signals.js');
 const {MirrorController}=require('./mirror_controller.js'),{PhoneClient}=require('./phone_client.js');
-const {QrPairing}=require('./qr_pairing.js'),{Dashboard}=require('./dashboard.js');
+const {Dashboard}=require('./dashboard.js'),guide=require('./connection_guide.js');
 const {RenderClient}=require('./mgu_render_client.js'),{IdriveRenderer}=require('./idrive_renderer.js'),{GpuVideoRenderer}=require('./gpu_video_renderer.js');
 const {SavedPhone,SavedSettings}=require('./saved_phone.js'),release=require('./release_notes.js');
 const logger=logging.getSDKLogger(),STATE='ST_MaxModsHudMirror';
-const NAMES=['mirrorStatus','mirrorPark','mirrorPhone','mirrorTest','mirrorPair','mirrorStart','mirrorStop','mirrorLayout','mirrorTarget','mirrorBackground','mirrorQr','mirrorForceClose','mirrorDiagnostics','mirrorWhatsNew','mirrorReleaseLine1','mirrorReleaseLine2','mirrorReleasePrevious','mirrorReleaseNext'];
+const NAMES=['mirrorStatus','mirrorPark','mirrorPhone','mirrorTest','mirrorPair','mirrorStart','mirrorStop','mirrorLayout','mirrorTarget','mirrorBackground','mirrorGuide','mirrorForceClose','mirrorDiagnostics','mirrorWhatsNew','mirrorReleaseLine1','mirrorReleaseLine2','mirrorReleasePrevious','mirrorReleaseNext'];
 const trueValue=v=>v===true||v===1||v==='1';
 class HudMirrorApp extends OnlineApp{
  constructor(){
   super();this._ui={};this._written={};this._actions={};this._focusActions={};this._pressAt={};this._done=false;this._spelling=false;this._selecting=false;this._visible=false;this._drawn=false;this._releaseIndex=0;this.saved=new SavedPhone();this.settings=new SavedSettings();this.background=this.settings.value.background;
-  this.guard=new ParkGuard();this.mirror=new MirrorController(this.guard,this.settings.value);this.mirror.hardware=this.settings.value.hardware;this.qr=new QrPairing(this.mirror);this.dashboard=new Dashboard(this,logger);
+  this.guard=new ParkGuard();this.mirror=new MirrorController(this.guard,this.settings.value);this.mirror.hardware=this.settings.value.hardware;this._guideIndex=0;this.dashboard=new Dashboard(this,logger);
   this.mirror.makeCentral=()=>new IdriveRenderer(this.dashboard);this.mirror.makeGpu=(target,layout,paired)=>new GpuVideoRenderer(target,layout,paired);this.mirror.canGpu=()=>GpuVideoRenderer.available();
   this.signals=new VehicleSignals(this.guard,()=>{this.mirror.checkPark();this.maybeStart();this.render();});
-  this.mirror.on('change',()=>this.render());this.qr.on('change',()=>this.render());this.qr.on('paired',()=>this.linked());this.qr.on('expired',()=>this.mirror.note('QR expired. Show a new code.'));
+  this.mirror.on('change',()=>this.render());
   this.on('initialized',()=>this.initUi().catch(e=>{logger.error('HUD Mirror init: '+e.message);this.mirror.close();this.dashboard.close();}));
   this.on('entryPointExecute',uuid=>{this._visible=true;this.dashboard.show(this._drawn);this.reportVisibility(true);if(this.rhmiApplication)Promise.resolve(this.rhmiApplication.openEntryState(uuid)).catch(()=>{});});
   this.on('changeVisibility',d=>{if(d&&d.visible===false&&!this._spelling&&!this._selecting)this.hide();});
@@ -29,7 +29,7 @@ class HudMirrorApp extends OnlineApp{
   if(!this._state)throw new Error('Missing HUD Mirror page');
   NAMES.forEach(n=>{this._ui[n]=rhmi.getByName(n);if(!this._ui[n])throw new Error('Missing UI control '+n);});
   this.bind('mirrorTest',()=>this.startMirror(true));this.bind('mirrorPair',()=>this.pairPhone());this.bind('mirrorStart',()=>this.mirror.starting?this.stopMirror():this.startMirror(false));this.bind('mirrorStop',()=>this.stopMirror());
-  this.bind('mirrorLayout',()=>this.chooseLayout());this.bind('mirrorTarget',()=>this.chooseDisplay());this.bind('mirrorBackground',()=>this.toggleBackground());this.bind('mirrorQr',()=>this.pairQr());this.bind('mirrorForceClose',()=>this.forceClose());
+  this.bind('mirrorLayout',()=>this.chooseLayout());this.bind('mirrorTarget',()=>this.chooseDisplay());this.bind('mirrorBackground',()=>this.toggleBackground());this.bind('mirrorGuide',()=>this.chooseGuide());this.bind('mirrorForceClose',()=>this.forceClose());
   this.bind('mirrorDiagnostics',()=>this.chooseDiagnostics());
   this.bind('mirrorReleasePrevious',()=>this.releaseNote(-1));this.bind('mirrorReleaseNext',()=>this.releaseNote(1));
   for(let i=0;i<12;i++){
@@ -38,7 +38,7 @@ class HudMirrorApp extends OnlineApp{
   }
   const pickers={ST_MaxModsDisplayPicker:[['pickHud',()=>this.mirror.setTarget('hud')],['pickCluster',()=>this.mirror.setTarget('map')],['pickIdrive',()=>this.mirror.setTarget('idrive')]],
    ST_MaxModsLayoutPicker:[['pickCompact',()=>{if(this.mirror.layout!=='compact')this.mirror.toggleLayout();}],['pickFull',()=>{if(this.mirror.layout!=='full')this.mirror.toggleLayout();}]],
-   ST_MaxModsSettingsPicker:[['pickAutoGpu',()=>this.mirror.setHardware(true)],['pickJpeg',()=>this.mirror.setHardware(false)],['pickBackground',()=>this.toggleBackground()],['pickForget',()=>{this.stopMirror();this.mirror.pairing=null;this.saved.forget();this.render();}]],ST_MaxModsDiagnostics:[]};
+   ST_MaxModsSettingsPicker:[['pickAutoGpu',()=>this.mirror.setHardware(true)],['pickJpeg',()=>this.mirror.setHardware(false)],['pickBackground',()=>this.toggleBackground()],['pickForget',()=>{this.stopMirror();this.mirror.pairing=null;this.saved.forget();this.render();}]],ST_MaxModsDiagnostics:[],ST_MaxModsConnectionGuide:[]};
   Object.keys(pickers).forEach(state=>{
    const page=rhmi.getByName(state);if(!page)return;
    pickers[state].forEach(row=>{this._ui[row[0]]=rhmi.getByName(row[0]);if(this._ui[row[0]])this.bind(row[0],()=>{const r=row[1]();return Promise.resolve(r).then(()=>this.closePicker(state));});});
@@ -47,6 +47,8 @@ class HudMirrorApp extends OnlineApp{
   ['pickDiagnostics','diagOutput','diagRate','diagPhone','diagCapture','diagSpeed','diagPark','diagIssue','diagIssue2','diagSignals','diagReconnect','diagBack'].forEach(n=>this._ui[n]=rhmi.getByName(n));
   this.bind('pickDiagnostics',()=>this.closePicker('ST_MaxModsSettingsPicker').then(()=>this.chooseDiagnostics()));
   this.bind('diagReconnect',()=>this.retryConnection());this.bind('diagBack',()=>this.closePicker('ST_MaxModsDiagnostics'));
+  ['guideTitle','guideLine1','guideLine2','guideLine3','guideLine4','guidePrevious','guideNext','guideBack'].forEach(n=>this._ui[n]=rhmi.getByName(n));
+  this.bind('guidePrevious',()=>this.guideStep(-1));this.bind('guideNext',()=>this.guideStep(1));this.bind('guideBack',()=>this.closePicker('ST_MaxModsConnectionGuide'));
   rhmi.on('userEvent',ev=>{const action=ev&&ev.eventType==='ACTION'&&this._actions[Number(ev.sourceId)];if(action)this.press(action.name,action.fn);const focus=ev&&ev.eventType==='FOCUS'&&this._focusActions[Number(ev.sourceId)];if(focus)focus((ev.parameterMap||{})[0]);});
   this._state.on('visible',ev=>{clearTimeout(this._hide);if(ev&&trueValue(ev.visible)){this._visible=true;this.dashboard.show(this._drawn&&!this._selecting);this.reportVisibility(true);}else if(!this._spelling&&!this._selecting)this._hide=setTimeout(()=>this.hide(),500);});
   this._state.on('focus',ev=>{if(ev&&!trueValue(ev.value===undefined?ev.focus:ev.value))this.dashboard.gpu.grab(false);else this.dashboard.show(this._visible&&this._drawn&&!this._selecting);});
@@ -75,23 +77,24 @@ class HudMirrorApp extends OnlineApp{
  linked(){const p=this.mirror.pairing;if(!p)return;this.saved.save(p);this._pendingSession=p.token;this._autoSession=p.token;this.mirror.gpuFailed=false;this.maybeStart();}
  maybeStart(){if(this._pendingSession&&this.mirror.pairing&&this._pendingSession===this.mirror.pairing.token&&this.guard.allowed()&&!this.mirror.running&&!this.mirror.starting){this._pendingSession=null;this.startMirror(false);}}
  resumePhone(){
-  if(this._done||this._resumeBusy||this._spelling||this.qr.url||this.mirror.running||this.mirror.starting||!this.saved.value)return;
+  if(this._done||this._resumeBusy||this._spelling||this.mirror.running||this.mirror.starting||!this.saved.value)return;
   this._resumeBusy=true;const epoch=this.mirror.generation,p=this._resumeClient=new PhoneClient();
-  p.resume(this.saved.value).then(info=>{if(this._done||epoch!==this.mirror.generation||this._spelling||this.qr.url)return;this.mirror.pairing=info;
+  p.resume(this.saved.value).then(info=>{if(this._done||epoch!==this.mirror.generation||this._spelling)return;this.mirror.pairing=info;
    if(info.token!==this._autoSession){this._autoSession=info.token;this._pendingSession=info.token;this.mirror.gpuFailed=false;this.maybeStart();this.render();}
   }).catch(()=>{}).then(()=>{p.close();if(this._resumeClient===p)this._resumeClient=null;this._resumeBusy=false;});
  }
  startMirror(test){if(!test&&!this.mirror.pairing){this.mirror.note('Start sharing on the linked phone, or pair it first');return;}if(!test){this._pendingSession=null;this._autoSession=this.mirror.pairing.token;}return this.mirror.start(test);}
  stopMirror(){this._pendingSession=null;if(this.mirror.pairing)this._autoSession=this.mirror.pairing.token;this.mirror.stop();}
  retryConnection(){this.stopMirror();this._autoSession=null;this.mirror.gpuFailed=false;if(!this.saved.value){this.mirror.note('Pair the phone first');return;}this.mirror.note('Checking linked phone. Start sharing on the phone if it is stopped.');this.resumePhone();}
- pairPhone(){this.qr.close();this.stopMirror();this._spelling=true;this.dashboard.show(false);return spell(this,'Phone address/code').then(text=>{this._spelling=false;this.dashboard.show(this._visible&&this._drawn);if(!this._done&&text)return this.mirror.pair(text).then(()=>this.linked());},e=>{this._spelling=false;this.dashboard.show(this._visible&&this._drawn);throw e;});}
- pairQr(){if(!this._drawn){this.mirror.note('GPU dashboard unavailable. Use Pair phone.');return;}this.dashboard.tab=0;this.stopMirror();this.mirror.note('Preparing QR connection...');return this.qr.start().then(()=>this.mirror.note('Scan the QR. Mirroring starts automatically.'));}
- openPicker(state){this._selecting=true;this._picker=state;this.dashboard.show(false);this.render();const p=this.rhmiApplication.getByName(state);return p.updateResources().then(()=>{Object.keys(this._written).forEach(k=>{if(/^(pick|diag)/.test(k))delete this._written[k];});this.render();return this.rhmiApplication.openState(state);});}
+ pairPhone(){this.stopMirror();this._spelling=true;this.dashboard.show(false);return spell(this,'Phone address/code').then(text=>{this._spelling=false;this.dashboard.show(this._visible&&this._drawn);if(!this._done&&text)return this.mirror.pair(text).then(()=>this.linked());},e=>{this._spelling=false;this.dashboard.show(this._visible&&this._drawn);throw e;});}
+ openPicker(state){this._selecting=true;this._picker=state;this.dashboard.show(false);this.render();const p=this.rhmiApplication.getByName(state);return p.updateResources().then(()=>{Object.keys(this._written).forEach(k=>{if(/^(pick|diag|guide)/.test(k))delete this._written[k];});this.render();return this.rhmiApplication.openState(state);});}
  closePicker(state){return Promise.resolve(this.rhmiApplication.closeState(state)).then(()=>{this._selecting=false;this._picker=null;this.dashboard.show(this._visible&&this._drawn);this.render();});}
  chooseDisplay(){return this.openPicker('ST_MaxModsDisplayPicker');}
  chooseLayout(){return this.openPicker('ST_MaxModsLayoutPicker');}
  chooseSettings(){return this.openPicker('ST_MaxModsSettingsPicker');}
  chooseDiagnostics(){return this.openPicker('ST_MaxModsDiagnostics');}
+ chooseGuide(){return this.openPicker('ST_MaxModsConnectionGuide');}
+ guideStep(step){this._guideIndex=(this._guideIndex+step+guide.pages.length)%guide.pages.length;this.render();}
  toggleBackground(){this.background=!this.background;this.render();}
  reportVisibility(visible){const name=visible?'registerHmiVisible':'unregisterHmiVisible';if(typeof this[name]==='function')Promise.resolve(this[name]()).catch(()=>{});if(this.background&&this.mirror.running&&typeof this.registerActive==='function')Promise.resolve(this.registerActive()).catch(()=>{});}
  write(name,value){const c=this._ui[name];if(!c||this._written[name]===value)return;this._written[name]=value;Promise.resolve(c.setValue(0,'Text',value,'Text')).catch(()=>{});}
@@ -116,11 +119,12 @@ class HudMirrorApp extends OnlineApp{
    this.write('diagIssue','Last issue: '+issue.slice(0,75));this.write('diagIssue2',issue.slice(75,160));
    this.write('diagSignals',(this.signals.errors.length?'Signals: '+this.signals.errors[this.signals.errors.length-1]:this._controllerError||'No signal/controller setup errors').slice(0,95));
   }
+  if(this._picker==='ST_MaxModsConnectionGuide'){const page=guide.pages[this._guideIndex];this.write('guideTitle',page.title+' ('+(this._guideIndex+1)+'/'+guide.pages.length+')');for(let i=0;i<4;i++)this.write('guideLine'+(i+1),page.lines[i]||'');}
   if(!this._selecting)this.dashboard.render();
  }
- hide(){if(this._spelling||this._selecting)return;this._visible=false;this.dashboard.show(false);this.qr.close();this.reportVisibility(false);if(!this.background)this.stopMirror();}
+ hide(){if(this._spelling||this._selecting)return;this._visible=false;this.dashboard.show(false);this.reportVisibility(false);if(!this.background)this.stopMirror();}
  forceClose(){this.stopMirror();const deadline=setTimeout(()=>process.exit(0),1500);if(deadline.unref)deadline.unref();return this.shutdown();}
- shutdown(){if(this._done)return;this._done=true;clearTimeout(this._hide);clearInterval(this._refresh);clearInterval(this._autoTimer);if(this._resumeClient)this._resumeClient.close();this.qr.close();this.dashboard.close();this.mirror.close();
+ shutdown(){if(this._done)return;this._done=true;clearTimeout(this._hide);clearInterval(this._refresh);clearInterval(this._autoTimer);if(this._resumeClient)this._resumeClient.close();this.dashboard.close();this.mirror.close();
   const controller=this._controller?Promise.resolve().then(()=>this._controller.shutdown()).catch(()=>{}):Promise.resolve();return this.signals.close().then(()=>controller).then(()=>this.destroyBundles()).catch(()=>{}).then(()=>process.exit(0));}
 }
 const app = new HudMirrorApp();

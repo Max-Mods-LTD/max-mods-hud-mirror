@@ -7,8 +7,8 @@ class Gpu extends EventEmitter{
 }
 const context={module:{exports:{}},require:n=>n==='./mgu_render_client.js'?{RenderClient:Gpu}:require(path.resolve(__dirname,'../car/src',n)),setInterval,clearInterval};
 vm.runInNewContext(fs.readFileSync(require.resolve('../car/src/dashboard.js'),'utf8'),context);const {Dashboard}=context.module.exports;
-const actions=[],app={mirror:{status:'Receiving 58 fps (GPU)',running:false,pairing:{host:'10.232.70.219'},layout:'compact',target:'hud'},guard:{reason:()=>''},qr:{url:null,close(){}},_releaseIndex:0,background:true,
- press:(id,fn)=>fn(),syncFocusProxies(){},chooseDisplay:()=>actions.push('display'),chooseLayout(){},chooseSettings(){},startMirror:test=>actions.push(test?'test':'start'),stopMirror(){},forceClose(){},pairQr(){},pairPhone(){},releaseNote(){}};
+const actions=[],app={mirror:{status:'Receiving 58 fps (GPU)',running:false,pairing:{host:'10.232.70.219'},layout:'compact',target:'hud'},guard:{reason:()=>''},_releaseIndex:0,background:true,
+ press:(id,fn)=>fn(),syncFocusProxies(){},chooseDisplay:()=>actions.push('display'),chooseLayout(){},chooseSettings(){},startMirror:test=>actions.push(test?'test':'start'),stopMirror(){},forceClose(){},chooseGuide:()=>actions.push('guide'),pairPhone(){},releaseNote(){}};
 const d=new Dashboard(app,{}),previews=[];
 function inspect(name){
  d.render(true);const c=d.recording,u=c.words(),f=new Float32Array(u.buffer,u.byteOffset,u.length);assert(u.byteLength<100*1024,'UI unexpectedly sends a screen-sized payload');
@@ -26,8 +26,7 @@ try{
  d.frontCcu({frontRotaryEncoderOperation:1,frontRotaryEncoderPushButton:0,frontSequenceNumberOperatingElement:2});assert.strictEqual(d.focus,1);
  d.frontCcu({frontRotaryEncoderOperation:1,frontRotaryEncoderPushButton:1,frontSequenceNumberOperatingElement:3});assert.strictEqual(d.tab,1);
  d.proxyPress(d.items.findIndex(b=>b.id==='test'));assert(actions.includes('test'));d.proxyFocus(0,true);assert.strictEqual(d.focus,0);
- d.gpu.emit('ready',{}, {modes:['embed'],embedBox:{x:0,y:0,w:1024,h:480},controller:false,video:true});d.tab=0;inspect('connection-narrow');
- app.qr.url='maxmods://pair?v=2&host=10.232.70.1&hosts=10.232.70.1,192.168.1.1,172.16.1.1,10.0.0.1&port=8477&key='+'a'.repeat(48);inspect('qr-narrow');app.qr.url=null;
+ d.gpu.emit('ready',{}, {modes:['embed'],embedBox:{x:0,y:0,w:1024,h:480},controller:false,video:true});d.tab=0;inspect('connection-narrow');assert(!d.items.some(b=>b.id==='qr'));d.proxyPress(d.items.findIndex(b=>b.id==='guide'));assert(actions.includes('guide'));
  d.tab=2;inspect('updates-narrow');d.tab=1;inspect('display-narrow');
  const logo=kit.imageById.get(200);let clear=0;for(let i=3;i<logo.data.length;i+=4)if(logo.data[i]===0)clear++;assert(clear>logo.w*logo.h*.2,'Logo is not transparent');
  d.setSurface({kind:'video',id:201,visible:true,rect:{x:20,y:20,w:900,h:400}});d.controls=true;d.setSurface({kind:'video',id:201,visible:true,rect:{x:20,y:20,w:900,h:400}});assert(d.controls,'Video updates hid the controls');inspect('video-controls');

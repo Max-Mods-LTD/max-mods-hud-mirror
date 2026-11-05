@@ -24,15 +24,9 @@ app against its own existing BMW SDK during installation.
 - `native/jpeg-decoder/stb_image.h`: Sean Barrett and contributors, stb_image 2.30,
   commit f0569113c93ad095470c54bf34a17b36646bbbb5. JPEG-only build; the
   complete MIT/public-domain dual licence is retained at the end of the header.
-- `car/src/qrcode.js`: Kazuhiko Arase, MIT, from
-  https://github.com/kazuhikoarase/qrcode-generator/tree/master/js/dist.
-  The downloaded source is pinned by the repository commit containing it.
 - `car/src/mgu_render_client.js`: Robert Nisipeanu/IterioDev community renderer
   client from robertnisipeanu/mgu-store, based on IterioDev's MIT-licensed
   transport (Copyright 2026 cauliflowermossgrape); original attribution retained.
-- `android/third_party/zxing-core-3.5.3.jar`: ZXing authors, Apache-2.0.
-  Provenance and checksum are beside the JAR; full licence is in
-  `licenses/Apache-2.0.txt`. No Google service, tracking or cloud decoder is used.
 - `car/assets/brand.json`: derived DejaVu Sans glyph pixels. Bitstream/DejaVu
   notices are in `assets/DejaVu-LICENSE.txt`, also included in the car package.
 - `assets/max-mods-logo.png`: official Max Mods artwork used at the director's
@@ -46,7 +40,12 @@ app against its own existing BMW SDK during installation.
   its proprietary system libraries are not redistributed here. The adapter
   never runs its firmware patch installer.
 
-MIT-licensed portions (QR generator and original renderer transport):
+Earlier 0.4/0.5 releases included Kazuhiko Arase's MIT QR generator and ZXing
+core 3.5.3 (Apache-2.0). They are removed from the current app/build. Historical
+source provenance remains in git; licenses/Apache-2.0.txt and the following
+MIT notice are retained for earlier downloadable releases.
+
+MIT-licensed portions (original renderer transport and historical QR generator):
 
 Copyright (c) 2009 Kazuhiko Arase.
 Copyright (c) 2026 cauliflowermossgrape.

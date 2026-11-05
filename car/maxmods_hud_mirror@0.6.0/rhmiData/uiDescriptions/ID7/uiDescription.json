@@ -109,7 +109,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Car 0.5.1 / phone 0.5.0",
+                "value": "Car 0.6.0 / phone 0.6.0",
                 "type": "Text"
               }
             }
@@ -293,7 +293,7 @@
         },
         "37": {
           "type": "button",
-          "name": "mirrorQr",
+          "name": "mirrorGuide",
           "properties": {
             "Visible": {
               "value": 1,
@@ -307,7 +307,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Pair with QR",
+                "value": "Connection guide",
                 "type": "Text"
               }
             }
@@ -373,7 +373,7 @@
           "rows": [
             {
               "Text": {
-                "value": "What's new in 0.5.1 (1/3)",
+                "value": "What's new in 0.6.0 (1/10)",
                 "type": "Text"
               }
             }
@@ -395,7 +395,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Fixed the Store source listing so Connect, GPU Video and",
+                "value": "Removed QR pairing from both apps. Pair once with the phone",
                 "type": "Text"
               }
             }
@@ -417,7 +417,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Display60 are available to install.",
+                "value": "address/code; the link is remembered.",
                 "type": "Text"
               }
             }
@@ -1308,6 +1308,206 @@
             {
               "Text": {
                 "value": "Back",
+                "type": "Text"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "7": {
+      "type": "state",
+      "name": "ST_MaxModsConnectionGuide",
+      "components": {
+        "117": {
+          "type": "title",
+          "name": "ST_MaxModsConnectionGuideTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Connection guide",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1700": {
+          "type": "label",
+          "name": "guideTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Connection guide",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1701": {
+          "type": "label",
+          "name": "guideLine1",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1702": {
+          "type": "label",
+          "name": "guideLine2",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1703": {
+          "type": "label",
+          "name": "guideLine3",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1704": {
+          "type": "label",
+          "name": "guideLine4",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1710": {
+          "type": "button",
+          "name": "guidePrevious",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Previous step",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1711": {
+          "type": "button",
+          "name": "guideNext",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Next step",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "1712": {
+          "type": "button",
+          "name": "guideBack",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Back to app",
                 "type": "Text"
               }
             }

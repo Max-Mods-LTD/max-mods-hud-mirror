@@ -2,7 +2,7 @@
 package uk.maxmods.hudmirror;
 
 
-/** One latest compressed picture. Capture liveness is separate from image age:
+/** Latest JPEG or bounded AVC references. Capture liveness is separate from image age:
  * Android need not produce new buffers while the screen is unchanged. */
 public final class FrameStore {
     // Native motion packing costs width*height/2 per frame. At 30 fps this
@@ -70,6 +70,14 @@ public final class FrameStore {
     public synchronized void visible(boolean value) {
         if (visible == value || stopped) return;
         visible = value; frame = null; encoded.clear();encodedBytes=0;version++; notifyAll();
+    }
+    public synchronized boolean trimAvcBacklog(long after,long maxAgeMs){
+        if(stopped||!visible||!format.equals("h264-annexb")||frame==null)return false;
+        Frame first=null;for(Frame candidate:encoded)if(candidate.id>after){first=candidate;break;}
+        if(first==null||first.id==frame.id||clock.nanoTime()-first.createdNs<=maxAgeMs*1000000L)return false;
+        // Do not let delayed reference frames form a playback queue. The
+        // sequence gap makes the car request an IDR before presenting more.
+        encoded.clear();encoded.addLast(frame);encodedBytes=frame.compressed.length;version++;notifyAll();return true;
     }
     public synchronized Snapshot snapshot(long after) {
         long age = clock.nanoTime() - aliveAt;

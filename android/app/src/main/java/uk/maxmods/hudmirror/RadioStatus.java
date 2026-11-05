@@ -11,12 +11,14 @@ import android.net.wifi.WifiManager;
  * that BMW is currently playing it. No audio routing/focus is changed. */
 public final class RadioStatus {
     public final boolean bluetooth;
+    public final boolean mediaPlaying;
     public final int frequency;
-    private RadioStatus(boolean bt, int mhz) { bluetooth = bt; frequency = mhz; }
+    private RadioStatus(boolean bt, int mhz,boolean playing) { bluetooth = bt; frequency = mhz;mediaPlaying=playing; }
     public static RadioStatus read(Context context) {
-        boolean bt = false; int mhz = -1;
+        boolean bt = false,playing=false; int mhz = -1;
         try {
             AudioManager audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            playing=audio.isMusicActive();
             for (AudioDeviceInfo device : audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
                 int type = device.getType();
                 if (type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
@@ -28,10 +30,10 @@ public final class RadioStatus {
             WifiInfo info = manager.getConnectionInfo();
             if (info != null) mhz = info.getFrequency();
         } catch (RuntimeException ignored) { /* No scan/location permission is requested. */ }
-        return new RadioStatus(bt, mhz);
+        return new RadioStatus(bt, mhz,playing);
     }
     public String description() {
         String band = frequency >= 5925 ? "6 GHz" : frequency >= 4900 ? "5 GHz" : frequency >= 2400 && frequency < 2500 ? "2.4 GHz" : "band unavailable";
-        return "Wi-Fi: " + band + " · Bluetooth output " + (bluetooth ? "connected" : "not detected");
+        return "Wi-Fi: " + band + " · Bluetooth output " + (bluetooth ? "detected" : "not detected")+(mediaPlaying?" · media playing":"");
     }
 }

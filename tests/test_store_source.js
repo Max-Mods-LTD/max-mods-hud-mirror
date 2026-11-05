@@ -9,8 +9,8 @@ if(!fs.existsSync(path.join(runtime,'sources.js')))throw Error('Set MGU_STORE_CH
 const sources=require(path.join(runtime,'sources.js')),{Updater}=require(path.join(runtime,'updater.js')),tar=require(path.join(runtime,'tar.js'));
 const reader=sources.reader({type:'file',path:root},{maxRepoBytes:8<<20,maxBuildBytes:8<<20});
 const stock={'cluster-render':'0.3.7','mgu-render':'0.2.0','mgu-deploy':'0.7.11'};
-function plannerFor(components,oldConnect){
- const planner=Object.create(Updater.prototype),installed=Object.assign({'maxmods_hud_mirror':'0.4.0'},stock,oldConnect?{'maxmods-connect':'0.1.0'}:{});
+function plannerFor(components,oldVideo){
+ const planner=Object.create(Updater.prototype),installed=Object.assign({'maxmods_hud_mirror':'0.4.0'},stock,oldVideo?{'maxmods-video':'0.0.0'}:{});
  const rows=new Map(components.map(entry=>[entry.id,{entry,source:'maxmods'}]));
  Object.assign(planner,{unit:{hmi:'ID7'},providers:{},src:new Map([['maxmods',{}]]),
   installedOf:id=>installed[id]?{version:installed[id]}:null,resolved:()=>rows,defs:()=>[{id:'maxmods'}]});
@@ -19,12 +19,12 @@ function plannerFor(components,oldConnect){
 (async()=>{
  const catalog=await reader.catalog();
  assert.deepStrictEqual(catalog.skipped,[],'The Store silently omitted source components: '+catalog.skipped.join('; '));
- assert.deepStrictEqual(catalog.components.map(c=>c.id).sort(),['maxmods-connect','maxmods-display60','maxmods-video','maxmods_hud_mirror'].sort());
- const app=catalog.components.find(c=>c.id==='maxmods_hud_mirror');
+ assert.deepStrictEqual(catalog.components.map(c=>c.id).sort(),['maxmods-display60','maxmods-video','maxmods_hud_mirror'].sort());
+ const app=catalog.components.find(c=>c.id==='maxmods_hud_mirror');assert(!app.requires['maxmods-connect']);
  assert.strictEqual(app.version,JSON.parse(fs.readFileSync(path.join(root,'release_notes.json'))).releases[0].version);
- for(const oldConnect of [false,true]){
-  const planner=plannerFor(catalog.components,oldConnect),plan=planner.installPlan({entry:app,source:'maxmods'},[]);
-  assert.deepStrictEqual(plan.map(s=>s.id),['maxmods-connect','maxmods-video','maxmods_hud_mirror'],'Helpers must install/update before the app');
+ for(const oldVideo of [false,true]){
+  const planner=plannerFor(catalog.components,oldVideo),plan=planner.installPlan({entry:app,source:'maxmods'},[]);
+  assert.deepStrictEqual(plan.map(s=>s.id),['maxmods-video','maxmods_hud_mirror'],'Helpers must install/update before the app');
  }
  for(const entry of catalog.components){
   const files=await reader.files(null,()=>{},entry.path);
@@ -42,10 +42,10 @@ function plannerFor(components,oldConnect){
  const broken=JSON.parse(fs.readFileSync(path.join(root,'mgu-repo.json'),'utf8'));
  broken.components.filter(c=>c.kind==='tool').forEach(c=>c.build='unit');
  const before=await sources.repoCatalog(rel=>rel==='mgu-repo.json'?Promise.resolve(Buffer.from(JSON.stringify(broken))):fs.promises.readFile(path.join(root,rel)),null,null);
- assert.strictEqual(before.components.length,1);assert.strictEqual(before.skipped.length,3);assert(before.skipped.every(s=>/a tool in a repo tree needs no build step/.test(s)));
- const missing=plannerFor(before.components,false);assert.throws(()=>missing.installPlan({entry:before.components[0],source:'maxmods'},[]),/needs maxmods-connect 0.2.0 or newer, which no source has/);
- console.log('PASS real Store source listing: all four components visible with no skipped tools');
- console.log('PASS real dependency planner: Connect and GPU Video install/update before HUD Mirror');
+ assert.strictEqual(before.components.length,1);assert.strictEqual(before.skipped.length,2);assert(before.skipped.every(s=>/a tool in a repo tree needs no build step/.test(s)));
+ const missing=plannerFor(before.components,false);assert.throws(()=>missing.installPlan({entry:before.components[0],source:'maxmods'},[]),/needs maxmods-video 0.1.0 or newer, which no source has/);
+ console.log('PASS real Store source listing: all three components visible with no skipped tools');
+ console.log('PASS real dependency planner: GPU Video install/update before HUD Mirror');
  console.log('PASS real Store packing: app/helpers, units, file checksums and permissions');
- console.log('PASS reproduced the reported missing-Connect failure with the old metadata');
+ console.log('PASS reproduced the reported missing-helper failure with the old metadata');
 })().catch(e=>{console.error(e);process.exitCode=1;});

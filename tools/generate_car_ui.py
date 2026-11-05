@@ -13,6 +13,8 @@ CAR = ROOT / 'car'
 APP = 'maxmods_hud_mirror'
 RELEASES = json.loads((ROOT / 'release_notes.json').read_text())['releases']
 RELEASE = RELEASES[0]
+GUIDE = json.loads((ROOT / 'connection_guide.json').read_text())
+assert all(len(p['lines'])<=4 and all(len(line)<=70 for line in p['lines']) for p in GUIDE['pages'])
 VERSION = RELEASE['version']
 TREE = CAR / (APP + '@' + VERSION)
 NS = uuid.UUID('61e3f454-5dc3-4c41-8f08-e5d94750f4cd')
@@ -28,6 +30,7 @@ release_lines = [textwrap.wrap(change, width=60, break_long_words=False, break_o
 assert all(0 < len(lines) <= 2 for lines in release_lines), 'Keep each release note within two 60-character lines'
 generated_notes = {'version': VERSION, 'phoneVersion': RELEASE['phoneVersion'], 'changes': RELEASE['changes'], 'lines': release_lines}
 (CAR / 'src' / 'release_notes.js').write_text('// SPDX-License-Identifier: GPL-3.0-or-later\n// Generated from release_notes.json.\n\'use strict\';\nmodule.exports = ' + json.dumps(generated_notes, indent=2) + ';\n')
+(CAR / 'src' / 'connection_guide.js').write_text('// SPDX-License-Identifier: GPL-3.0-or-later\n// Generated from connection_guide.json.\n\'use strict\';\nmodule.exports = ' + json.dumps(GUIDE, indent=2) + ';\n')
 rows = [
     (10, 'title', 'mirrorTitle', 'Max Mods HUD Mirror'),
     (20, 'label', 'mirrorStatus', 'Stopped'),
@@ -42,7 +45,7 @@ rows = [
     (34, 'button', 'mirrorLayout', 'Picture size: Compact'),
     (35, 'button', 'mirrorTarget', 'Display: Head-up display'),
     (36, 'button', 'mirrorBackground', 'Keep mirroring on other pages: On'),
-    (37, 'button', 'mirrorQr', 'Pair with QR'),
+    (37, 'button', 'mirrorGuide', 'Connection guide'),
     (38, 'button', 'mirrorForceClose', 'Force close / reset app'),
     (39, 'button', 'mirrorDiagnostics', 'Connection diagnostics'),
     (40, 'label', 'mirrorWhatsNew', "What's new in " + VERSION + ' (1/' + str(len(release_lines)) + ')'),
@@ -74,10 +77,11 @@ extra_states = [
     (4, 'ST_MaxModsLayoutPicker', 'LT_State_Wide', [(1510,'pickCompact','Compact'),(1511,'pickFull','Full display')]),
     (5, 'ST_MaxModsSettingsPicker', 'LT_State_Wide', [(1520,'pickAutoGpu','Automatic GPU video'),(1521,'pickJpeg','JPEG compatibility mode'),(1522,'pickBackground','Mirror on other pages'),(1523,'pickForget','Forget linked phone'),(1524,'pickDiagnostics','Connection diagnostics')]),
     (6, 'ST_MaxModsDiagnostics', 'LT_State_Wide', [(1600,'diagOutput','Output','label'),(1601,'diagRate','Received fps','label'),(1602,'diagPhone','Phone','label'),(1603,'diagCapture','Capture','label'),(1604,'diagSpeed','Speed freshness','label'),(1605,'diagPark','Park freshness','label'),(1606,'diagIssue','Last issue','label'),(1607,'diagIssue2','','label'),(1608,'diagSignals','Signal provider','label'),(1609,'diagReconnect','Reconnect linked phone'),(1610,'diagBack','Back')])
+    ,(7, 'ST_MaxModsConnectionGuide', 'LT_State_Wide', [(1700,'guideTitle','Connection guide','label')]+[(1701+i,'guideLine'+str(i+1),'','label') for i in range(4)]+[(1710,'guidePrevious','Previous step'),(1711,'guideNext','Next step'),(1712,'guideBack','Back to app')])
 ]
 for sid, name, widget, controls in extra_states:
     title_id=110+sid
-    title='Connection diagnostics' if sid==6 else 'Display options' if sid>2 else 'Max Mods HUD Mirror'
+    title='Connection guide' if sid==7 else 'Connection diagnostics' if sid==6 else 'Display options' if sid>2 else 'Max Mods HUD Mirror'
     state_components={str(title_id): {'type':'title','name':name+'Title','properties':{'Visible':{'value':1,'type':'UInt'}},'rows':[{'Text':{'value':title,'type':'Text'}}]}}
     xml += [f'  <container id="{sid}" type="state" widget="{widget}">',f'    <layoutGroup id="{sid*100+500}" name="Titlebar"><component id="{title_id}" type="title"><property id="2" value="1"/></component></layoutGroup>',f'    <layoutGroup id="{sid*100+501}" name="List"><property id="3" value="1"/>']
     for row in controls:
@@ -139,16 +143,15 @@ proxies['de.bmw.infotainment.controlelements.FrontCCU']={'instances':'1','attrib
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.
 write(TREE / 'permissions.json', {x: [] for x in ['masterAccessTable','mediatorAccessTable','ownerAccessTable','masterRegistrationTable','mediatorRegistrationTable','ownerRegistrationTable','domainRoleTable']})
-modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js','jpeg_worker.js','qr_pairing.js','qrcode.js','dashboard.js','brand_canvas.js','mgu_render_client.js','gpu_canvas.js','idrive_renderer.js','gpu_video_renderer.js','saved_phone.js']
+modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','connection_guide.js','cluster_render_client.js','jpeg_worker.js','dashboard.js','brand_canvas.js','mgu_render_client.js','gpu_canvas.js','idrive_renderer.js','gpu_video_renderer.js','saved_phone.js']
 write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree': TREE.name, 'internet': True,
     'modules': ['src/' + x for x in modules], 'sdk': ['oap-sdk/src/core/OnlineApp.js','oap-sdk/src/logging/logging','oap-sdk/src/someip/someipBuilders']})
 write(ROOT / 'mgu-repo.json', {'schema': 1, 'name': 'MaxModsIdriveApps', 'title': 'Max Mods iDrive Apps', 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
-    'description': 'Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.', 'version': VERSION, 'mguHmi': ['ID7'],
-    'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11','maxmods-connect':'0.2.0','maxmods-video':'0.1.0'}},
+    'description': 'Mirror your Android phone to one HUD, cluster or iDrive screen, with a connection guide and remembered manual pairing.', 'version': VERSION, 'mguHmi': ['ID7'],
+    'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11','maxmods-video':'0.1.0'}},
     # Repo-tree tools are already programs/files. The updater rejects any
     # build field on a tool; only the app uses build='unit'.
     dict(json.loads((ROOT / 'tools/Display60/component.json').read_text()), path='tools/Display60'),
-    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect'),
     dict(json.loads((ROOT / 'tools/Video/component.json').read_text()), path='tools/Video')]})
 image = Image.new('RGBA', (140, 140), (0,0,0,0))
 logo = Image.open(ROOT / 'assets' / 'max-mods-logo-stacked.png').convert('RGBA')
@@ -166,6 +169,7 @@ shutil.copy(ROOT / 'assets' / 'DejaVu-LICENSE.txt', TREE / 'assets' / 'DejaVu-LI
 # A car-only hotfix keeps the already-published phone APK/source unchanged.
 if RELEASE['phoneVersion'] == VERSION:
     shutil.copy(ROOT / 'release_notes.json', ROOT / 'android/app/src/main/assets/release_notes.json')
+shutil.copy(ROOT / 'connection_guide.json', ROOT / 'android/app/src/main/assets/connection_guide.json')
 shutil.copy(ROOT / 'LICENSE', TREE / 'LICENSE')
 if (ROOT / 'THIRD_PARTY_NOTICES.md').exists(): shutil.copy(ROOT / 'THIRD_PARTY_NOTICES.md', TREE / 'THIRD_PARTY_NOTICES.md')
 print('Generated', TREE)

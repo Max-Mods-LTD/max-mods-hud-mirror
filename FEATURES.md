@@ -1,17 +1,18 @@
-# Requested feature coverage — 0.5.1
+# Requested feature coverage — 0.6.0
 
 | Request | Implementation | Physical check / limit |
 | --- | --- | --- |
-| Missing Connect / helpers blocked update | Removed invalid build flags from tools; actual Store parser lists all four components and plans helpers before the app | Car install acceptance still needs checking |
+| Missing Connect / helpers blocked update | Connect removed with QR; actual Store parser lists app, GPU Video and Display60 with valid tool metadata | Current upgrade still needs car acceptance |
 | Less lag / pixelation; use Waze GPU path | Automatic hardware AVC with a separate installed Waze decoder; no level rounding; JPEG fallback | New hardware path untested; shared packing/budget still apply |
 | 30 / 60 fps | Sharp/Smooth targets, hardware encoder negotiation, optional Display60 clock | Host link 29.0/57.5 fps; no measured car fps |
-| BMW Bluetooth / Android Auto audio | Existing audio route, low-bandwidth AVC or JPEG coexistence modes | Actual wireless audio/network coexistence |
+| BMW Bluetooth / Android Auto audio slowdown | Live AVC bitrate control, audio-aware ceilings, capped encoder input, selected-canvas capture and stale backlog discard; JPEG quality before fps | Actual wireless audio/network coexistence; no promised 60 fps |
 | Complete phone / smaller or Full picture | Aspect fit in both orientations; Compact / Full; saved layout | Check all edges and BMW speed/sign visibility |
 | HUD, cluster or iDrive | One renderer instance; release old output before new output; central I420/GPU video surface | Display ownership/physical presentation |
 | Cluster failed | Map slot contention now follows Waze | Check actual cluster slot and stock warnings |
 | Keep mirroring while on other pages / Android Auto | Background option and phone foreground service | Main-screen mirroring itself needs its app page; force-stop ends capture |
 | Press Start once | Trusted reconnect; phone Start auto-starts selected car display; Stop suppresses same-session restart | First pairing and Android consent still required; changed IP needs re-pair |
-| QR failed | Same-subnet address selection, up to four car addresses, longer helper startup, clear errors; manual fallback | Real camera, firewall and BMW network |
+| Remove broken QR | Scanner, camera permission, QR generator and current Connect dependency removed; remembered manual pairing | Enter address/code once; changed IP needs pairing |
+| Explain connections in app | Shared seven-step BMW Wi-Fi / password / Samsung / audio / pairing guide, native car pages and phone settings shortcuts | BMW labels vary by software/equipment |
 | Vehicle signals stale | Changing powertrain CRC subscription plus real quiet-field subscription renewal | Still fails closed if real speed/P events stop |
 | Slow iDrive UI / fill display | Native GPU text/buttons, actual embed area sizing, no full-screen bitmap updates | Physical compositor/performance |
 | iDrive controller | Renderer CCU, native focus/action proxies, FrontCCU fallback | Actual rotary/press handling |

@@ -30,7 +30,7 @@ public final class CaptureService extends Service {
     private Handler captureHandler;
     private DisplayManager.DisplayListener rotationListener;
     private PairingServer server;
-    private CodecCapture avc;
+    private volatile CodecCapture avc;
     private String bindAddress;
     private long lastFrameNs;
     private long startedMs;
@@ -56,6 +56,7 @@ public final class CaptureService extends Service {
             main.post(new Runnable() { public void run() { finish("Sharing stopped: capture display ended"); } }); return;
         }
         frames.heartbeat();
+        if(avc!=null)avc.adapt(transport);
         if (lastFrameNs != 0 && System.nanoTime() - lastFrameNs > 2000000000L) transport.idle();
         if (appliedPercent != transport.capturePercent()) resizeCapture(sourceWidth, sourceHeight);
         captureHandler.postDelayed(this, 250);
@@ -64,8 +65,9 @@ public final class CaptureService extends Service {
         if (!active) return;
         RadioStatus radio = RadioStatus.read(CaptureService.this);
         transport.setMode(getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO));
-        transport.radio(radio.bluetooth, radio.frequency);
-        linkStatus = radio.description() + "\n" + transport.description();
+        transport.radio(radio.bluetooth, radio.frequency,radio.mediaPlaying);
+        CodecCapture codec=avc;
+        linkStatus = radio.description() + "\n" + (codec==null?transport.description():"Hardware video · "+codec.width+"×"+codec.height+" · cap "+codec.fps+" fps · requested "+String.format(java.util.Locale.US,"%.1f",codec.bitrate/1000000.0)+" Mbps"+(codec.adaptive?"":" · restart to change bitrate"));
         Inet4Address now = MainActivity.wifiAddress(CaptureService.this);
         if (now == null || !now.getHostAddress().equals(bindAddress)) { finish("Sharing stopped: Wi-Fi connection changed"); return; }
         if (SystemClock.elapsedRealtime() - startedMs >= 10 * 60 * 1000L) { finish("Session ended. Start sharing again."); return; }
@@ -93,7 +95,7 @@ public final class CaptureService extends Service {
             frames.configure(profile); transport.setProfile(profile);
             RadioStatus radio = RadioStatus.read(this);
             transport.setMode(getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO));
-            transport.radio(radio.bluetooth, radio.frequency);
+            transport.radio(radio.bluetooth, radio.frequency,radio.mediaPlaying);
             Inet4Address wifi = MainActivity.wifiAddress(this);
             if (wifi == null || !wifi.getHostAddress().equals(bindAddress)) throw new IllegalStateException("Connect to BMW Wi-Fi and try again");
             Intent consent = intent.getParcelableExtra("projection");
@@ -163,7 +165,7 @@ public final class CaptureService extends Service {
     private ImageReader newReader(int width, int height) {
         ImageReader next = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3);
         next.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() { public void onImageAvailable(ImageReader source) {
-            if (source != reader || captureScheduled || !active || cleaning) return;
+            if (source != reader || avc!=null || captureScheduled || !active || cleaning) return;
             captureScheduled = true;
             long remaining = 1000000000L / transport.targetFps() - (System.nanoTime() - lastFrameNs);
             // Consume the latest queued image at the deadline. Dropping an early
@@ -193,7 +195,7 @@ public final class CaptureService extends Service {
         if(mode.equals("h264")){
             if(avc!=null){avc.keyframe();return;}
             CodecCapture next=new CodecCapture();
-            android.view.Surface surface=next.start(frames.fps(),captureHandler,frames,new CodecCapture.Failure(){public void failed(final String error){main.post(new Runnable(){public void run(){finish(error);}});}});
+            android.view.Surface surface=next.start(frames.fps(),captureHandler,frames,transport,new CodecCapture.Failure(){public void failed(final String error){main.post(new Runnable(){public void run(){finish(error);}});}});
             frames.setFormat("h264-annexb");avc=next;display.resize(next.width,next.height,density);display.setSurface(surface);avc.keyframe();
         }else{
             frames.setFormat("jpeg");CodecCapture old=avc;avc=null;

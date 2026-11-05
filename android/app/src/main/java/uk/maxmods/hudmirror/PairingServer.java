@@ -168,14 +168,17 @@ public final class PairingServer implements Closeable {
                 if (System.nanoTime() - started >= 10L * 60L * 1000000000L || snapshot.state.equals("stopped") || snapshot.state.equals("stalled")) {
                     writeRecord(socket, out, 5, after, null); return;
                 }
+                boolean avc=frames.format().equals("h264-annexb");
+                if(avc&&frames.trimAvcBacklog(after,300)){transport.avcBacklog();snapshot=frames.snapshot(after);}
                 int state = snapshot.state.equals("hidden") ? 4 : snapshot.state.equals("waiting") ? 3 : 2;
                 long now = System.nanoTime();
                 if (snapshot.frame != null && now >= nextPicture) {
                     long began = System.nanoTime();
                     writeRecord(socket, out, 1, snapshot.frame.id, snapshot.frame.compressed);
                     long ended = System.nanoTime();
-                    transport.sent(snapshot.frame.compressed.length, ended - began);
-                    nextPicture = began + (frames.format().equals("h264-annexb") ? (long)snapshot.frame.compressed.length*1000000000L/(3*1024*1024) : transport.intervalNs(snapshot.frame.compressed.length));
+                    if(avc)transport.sentAvc(snapshot.frame.compressed.length,ended-began,Math.max(0,ended-snapshot.frame.createdNs));
+                    else transport.sent(snapshot.frame.compressed.length, ended - began);
+                    nextPicture = began + (avc ? (long)snapshot.frame.compressed.length*1000000000L/(3*1024*1024) : transport.intervalNs(snapshot.frame.compressed.length));
                     after = snapshot.frame.id; lastWrite = System.nanoTime(); lastState = 2;
                 } else if (state != lastState || now - lastWrite >= 250000000L) {
                     writeRecord(socket, out, state, after, null); lastWrite = System.nanoTime(); lastState = state;
@@ -187,8 +190,8 @@ public final class PairingServer implements Closeable {
             }
         } finally { synchronized (this) { if (streamSocket == socket) streamSocket = null; } }
     }
-    /** u32 payload length, u8 kind, u64 frame id, then one bounded JPEG frame.
-     * No queue: a slow socket gets the latest picture when it catches up. */
+    /** u32 payload length, u8 kind, u64 frame id, then one bounded JPEG/AVC unit.
+     * JPEG keeps the latest picture; AVC preserves a bounded reference sequence. */
     private void writeRecord(final Socket socket, OutputStream out, int kind, long id, byte[] payload) throws IOException {
         int length = payload == null ? 0 : payload.length;
         byte[] header = new byte[13];

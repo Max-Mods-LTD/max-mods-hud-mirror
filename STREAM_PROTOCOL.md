@@ -1,6 +1,7 @@
 # Phone stream protocol 4
 
-Phone and car both require version **0.5.0**. The phone binds its selected
+Current phone and car version is **0.6.0**, retaining protocol 4. Update both
+for current traffic handling and connection guides. The phone binds its selected
 private Wi-Fi IPv4 address on TCP 8476. Requests with an Origin, unsupported
 routes/body lengths or unauthorised peers/tokens are refused.
 
@@ -32,8 +33,8 @@ are refused. The rate is a requested maximum, not a measured display rate.
 
 Authenticated POST /v4/prepare accepts exactly jpeg or h264 (four bytes).
 The phone switches the surface on its one VirtualDisplay. JPEG retains the
-selected canvas. Hardware AVC captures the complete screen into 1280 × 720,
-with Android aspect fit; native decoder VPP scales to the renderer canvas.
+selected canvas. Hardware AVC first tries that canvas, with a 1280 × 720
+fallback. Android fits the complete screen; decoder VPP scales to the canvas.
 Android 12L+ uniform scaling is required for this path. Older Android or
 unsupported hardware/configuration returns an error and the car selects JPEG.
 POST /v4/keyframe with a one-byte body requests a fresh AVC sync frame.
@@ -60,11 +61,24 @@ application/x-maxmods-hud-stream with X-Mirror-Protocol:4. Each record has:
 
 JPEG stores only the newest frame. The car allows one native decode and one
 latest waiting frame. AVC needs reference order: the phone retains at most
-12 access units / 2 MiB. On gaps the car discards non-IDR units and requests a
+12 access units / 2 MiB. If multiple pending units are over 300 ms behind,
+the phone retains only the newest without changing its sequence/capture time.
+On gaps the car discards non-IDR units and requests a
 keyframe, at most every 250 ms. Each IDR has codec configuration prefixed.
 A slow writer is bounded and can cause JPEG fallback; no unbounded playback
 queue is allowed. AVC byte pacing does not independently drop reference
 frames to impose a second fps limiter.
+
+The hardware encoder caps surface input before compression at its negotiated
+30/60 maximum. Auto AVC ceilings are 1.2 Mbps for detected audio on shared or
+unknown bands, 1.8 Mbps for audio on 5 GHz and 2.4 Mbps otherwise. Audio priority
+always caps at 1.2 Mbps; Quality allows 3 Mbps. Measured write delay/capture age
+reduces the requested encoder rate by 25%, no more often than every 500 ms,
+to a 0.6 Mbps floor. Sustained clear writes recover gradually within the
+current ceiling. MediaCodec applies changes via VIDEO_BITRATE; a driver that
+rejects runtime changes keeps encoding and exposes that status to the phone.
+JPEG congestion reduces quality before reducing fps; canvas dimensions stay
+fixed. These policies do not change audio focus, routing or BMW radio settings.
 
 Capture-alive is renewed only by the capture worker after checking Android's
 projection/display and phone state. HTTP or unchanged pixels cannot renew
@@ -102,28 +116,13 @@ Speed/Park freshness, app visibility options and session deadlines remain
 independent of transport. No output is authorised by cached/timer-generated
 vehicle readings.
 
-## QR pairing version 2
+## Local connection
 
-Pair with QR temporarily listens on TCP 8477. It advertises up to four
-eligible private car addresses:
+QR pairing and its TCP 8477 listener are removed from the current apps.
+Manual pairing and trusted resume need no inbound car firewall opening.
+The obsolete Connect tool remains in source/rollback material and
+is not listed or required by the current catalog.
 
-maxmods://pair?v=2&host=first&hosts=comma-separated-addresses&port=8477&key=48hex
-
-The phone selects only addresses in the same subnet as its capture Wi-Fi
-network and binds the HTTP request to that Network. It sends the eight-digit
-PIN to POST /pair, header X-MaxMods-Pair. Redirects/public addresses are refused.
-The car derives the phone address from the socket, checks nonce, length,
-origin, attempts, expiry and live Park, then claims the nonce once and performs
-the normal outgoing pairing. Camera frames remain local.
-
-Connect 0.2.0 grants a temporary lease through its group-restricted Unix
-socket. It validates one to four addresses against actual interfaces and
-adds only TCP 8477 rules for the interface, destination and source subnet.
-No arbitrary commands/ports/durations are accepted. Disconnect/expiry removes
-only MaxModsQR rules, with cleanup retry. The helper receives no PIN, QR key
-or video. QR is shown only after the helper becomes ready; manual pairing
-remains available if it fails.
-
-These local protocols are authenticated but not transport-encrypted. Use a
+The local protocol is authenticated but not transport-encrypted. Use a
 trusted BMW network. Only the private reconnect credential/address and display
-preferences persist; screens, camera frames, PINs and session tokens do not.
+preferences persist; screens, PINs and session tokens do not.

@@ -8,7 +8,6 @@ class Online extends EventEmitter{
  registerHmiVisible(){this.reports.push('visible');return Promise.resolve();}unregisterHmiVisible(){this.reports.push('hidden');return Promise.resolve();}
  initialized(){return Promise.resolve();}destroyBundles(){this.destroyed=true;return Promise.resolve();}
 }
-class Qr extends EventEmitter{close(){this.closed=true;this.url=null;}start(){return Promise.resolve();}}
 class Dash{
  constructor(){this.gpu={grab(){}};}show(v){this.visible=v;}render(){}connect(){}close(){this.closed=true;}
  frontCcu(v){this.ccu=v;}proxyPress(i){this.pressed=i;}proxyFocus(i,v){if(v)this.focused=i;}
@@ -23,7 +22,7 @@ const modules={
  'oap-sdk/src/someip/someipBuilders':{buildTypedProxy:n=>{assert(/FrontCCU$/.test(n));return Promise.resolve(proxy);}},
  './park_guard.js':{ParkGuard},'./mirror_controller.js':{MirrorController},'./phone_client.js':{PhoneClient:Phone},
  './vehicle_signals.js':{VehicleSignals:Signals,nativeTick:fn=>Promise.resolve().then(fn),withSignalTimeout:p=>p},
- './qr_pairing.js':{QrPairing:Qr},'./dashboard.js':{Dashboard:Dash},'./mgu_render_client.js':{RenderClient:{available:()=>true}},
+ './connection_guide.js':require('../car/src/connection_guide.js'),'./dashboard.js':{Dashboard:Dash},'./mgu_render_client.js':{RenderClient:{available:()=>true}},
  './idrive_renderer.js':{IdriveRenderer:class{}},'./gpu_video_renderer.js':{GpuVideoRenderer:{available:()=>false}},
  './saved_phone.js':{SavedPhone:Saved,SavedSettings:Settings},'./release_notes.js':require('../car/src/release_notes.js'),'./speller.js':{spell:()=>Promise.resolve(null)}
 };
@@ -33,7 +32,7 @@ vm.runInNewContext(source,box);const App=box.module.exports;
 const turn=()=>new Promise(r=>setImmediate(r));
 const park=a=>{a.guard.updateSpeed({speedVehicleCentreOfGravity:0});a.guard.updateStage({statusActualStageDrive:'P'},'statusActualStageDrive');};
 (async()=>{
- const a=new App();a.mirror.running=true;a.hide();assert(a.mirror.running);assert(a.qr.closed&&!a.dashboard.visible);assert(a.reports.includes('active')&&a.reports.includes('hidden'));
+ const a=new App();a.mirror.running=true;a.hide();assert(a.mirror.running);assert(!('qr' in a)&&!a.dashboard.visible);assert(a.reports.includes('active')&&a.reports.includes('hidden'));
  a.background=false;a.hide();assert(!a.mirror.running);a.background=true;a.mirror.running=true;a.guard.updateSpeed({speedVehicleCentreOfGravity:64});a.signals.changed();assert(!a.mirror.running);await a.shutdown();
  console.log('PASS background page changes retain the mirror while movement and foreground-only mode stop it');
  const b=new App(),rows=new Map();let opened=null,mapped=null,closed=null;
@@ -47,6 +46,7 @@ const park=a=>{a.guard.updateSpeed({speedVehicleCentreOfGravity:0});a.guard.upda
  b.mirror.setTarget('map');await b.closePicker(opened);assert.strictEqual(closed,opened);assert(b.dashboard.visible&&!b._selecting);assert.strictEqual(b.settings.value.target,'map');
  await b.chooseDiagnostics();assert.strictEqual(opened,'ST_MaxModsDiagnostics');assert(/unknown/.test(rows.get('diagSpeed').label));assert(/missing/.test(rows.get('diagPark').label));
  b.retryConnection();assert(/Pair the phone first/.test(b.mirror.status));await b.closePicker(opened);
+ await b.chooseGuide();assert.strictEqual(opened,'ST_MaxModsConnectionGuide');assert(/BMW Wi-Fi/.test(rows.get('guideLine1').label));b.guideStep(1);assert(/COM/.test(rows.get('guideLine1').label));b.guideStep(-1);assert.strictEqual(b._guideIndex,0);await b.closePicker(opened);
  await b.forceClose();assert(b._done&&b.dashboard.closed&&b.signals.closed&&proxy.closed&&b.destroyed);assert(exits>=2);
  console.log('PASS OEM display picker, native controller/focus buttons and Force close release only this app resources');
  const c=new App();park(c);c.mirror.start=()=>{starts++;c.mirror.running=true;return Promise.resolve();};

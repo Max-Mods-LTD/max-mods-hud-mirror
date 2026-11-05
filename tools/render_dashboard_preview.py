@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the real GPU dashboard recordings for host layout/QR checks.
+"""Render the real GPU dashboard recordings for host layout checks.
 
 These are previews of app commands, not screenshots of the BMW compositor.
 """
@@ -52,6 +52,6 @@ for record in json.loads((out/'recordings.json').read_text()):
     image.convert('RGB').save(out/(record['name']+'.png'))
 dest=ROOT/'docs/images'
 dest.mkdir(parents=True,exist_ok=True)
-for source,name in [('connection','dashboard'),('display','display'),('updates','updates'),('qr-narrow','pairing')]:
+for source,name in [('connection','dashboard'),('display','display'),('updates','updates')]:
     (dest/(name+'.png')).write_bytes((out/(source+'.png')).read_bytes())
-print('Updated host dashboard/QR previews')
+print('Updated host dashboard previews')

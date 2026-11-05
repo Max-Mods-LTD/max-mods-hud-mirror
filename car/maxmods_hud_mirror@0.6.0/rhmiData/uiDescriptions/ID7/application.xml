@@ -86,4 +86,17 @@
       <component id="1610" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
     </layoutGroup>
   </container>
+  <container id="7" type="state" widget="LT_State_Wide">
+    <layoutGroup id="1200" name="Titlebar"><component id="117" type="title"><property id="2" value="1"/></component></layoutGroup>
+    <layoutGroup id="1201" name="List"><property id="3" value="1"/>
+      <component id="1700" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1701" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1702" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1703" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1704" type="label" widget="LT_Label_1Row"><property id="2" value="1"/><property id="3" value="0"/></component>
+      <component id="1710" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1711" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+      <component id="1712" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component>
+    </layoutGroup>
+  </container>
 </application>

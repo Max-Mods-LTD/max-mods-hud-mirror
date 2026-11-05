@@ -78,14 +78,40 @@ public class PhoneServerHarness {
         policy.radio(true,2412);check(policy.capturePercent()==100,"Bluetooth reduced spatial detail");
         check(policy.bytesPerSecond()==3L*1024*1024,"Bluetooth budget missing");
         check(policy.intervalNs(3*1024*1024)>=1000000000L,"Wire pacing missing");
+        int quality=policy.jpegQuality();
         for(int i=0;i<12;i++){now[0]+=300000000L;policy.sent(350000,100000000L);}
-        check(policy.capturePercent()==100&&policy.targetFps()<60&&policy.targetFps()>=15,"Congestion bounds");
+        check(policy.capturePercent()==100&&policy.targetFps()==60&&policy.jpegQuality()<quality,"JPEG must reduce compressed traffic before fps");
+        for(int i=0;i<20;i++){now[0]+=300000000L;policy.sent(350000,100000000L);}
+        check(policy.targetFps()<60&&policy.targetFps()>=15&&policy.jpegQuality()>=75,"Sustained congestion bounds");
         int low=policy.targetFps();
         for(int i=0;i<120;i++){now[0]+=40000000L;policy.sent(1000,1000000L);}
         check(policy.targetFps()>low,"Recovery never restored rate");
+        for(int i=0;i<600;i++){now[0]+=40000000L;policy.sent(1000,1000000L);}
+        check(policy.targetFps()==60&&policy.jpegQuality()==quality,"Recovery never restored JPEG detail");
         policy.setMode(TransportPolicy.QUALITY);check(policy.jpegQuality()==93&&policy.bytesPerSecond()==0,"Quality override");
+        TransportPolicy avc=new TransportPolicy(new FrameStore.Clock(){public long nanoTime(){return now[0];}});avc.setProfile("smooth");
+        avc.radio(false,2412);check(avc.avcBitrate()==2400000,"No-audio AVC budget");
+        avc.radio(false,2412,true);check(avc.avcBitrate()==1200000,"Active audio without a reported Bluetooth device was ignored");
+        avc.radio(true,2412,true);check(avc.avcBitrate()==1200000,"Shared-band audio budget");
+        for(int i=0;i<9;i++){now[0]+=300000000L;avc.sentAvc(10000,150000000L,250000000L);}
+        check(avc.avcBitrate()==TransportPolicy.AVC_MIN&&avc.targetFps()==60&&avc.capturePercent()==100,"AVC congestion must change bitrate, not impose a JPEG fps limiter");
+        avc.avcBacklog();check(avc.avcBitrate()==TransportPolicy.AVC_MIN,"AVC bitrate floor");
+        for(int i=0;i<120;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
+        check(avc.avcBitrate()>TransportPolicy.AVC_MIN&&avc.avcBitrate()<=1200000,"AVC bounded recovery");
+        for(int i=0;i<1200;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
+        check(avc.avcBitrate()==1200000,"AVC exceeded the audio ceiling");
+        avc.radio(true,5180,true);
+        for(int i=0;i<1200;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
+        check(avc.avcBitrate()==1800000,"5 GHz audio budget/recovery");
+        avc.radio(false,5180,false);
+        for(int i=0;i<1200;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
+        check(avc.avcBitrate()==2400000,"Audio-disconnect recovery");
+        avc.setMode(TransportPolicy.BLUETOOTH);check(avc.avcBitrate()==1200000,"Manual Audio priority must work on any band");
+        avc.setMode(TransportPolicy.QUALITY);
+        for(int i=0;i<1200;i++){now[0]+=40000000L;avc.sentAvc(1000,1000000L,20000000L);}
+        check(avc.avcBitrate()==3000000,"Explicit Quality budget/recovery");
         FrameStore smooth=new FrameStore();smooth.configure("smooth");check(smooth.width()==576&&smooth.height()==324&&smooth.fps()==60,"Profile negotiation");
-        System.out.println("PASS fixed detail under congestion, JPEG quality, Bluetooth traffic pacing, 30/60 targets and recovery");
+        System.out.println("PASS fixed canvas, JPEG quality before fps, audio/radio AVC budgets, bitrate floor/recovery and unchanged AVC fps target");
     }
     public static void main(String[] args) throws Exception {
         FrameStore store = new FrameStore();
@@ -93,11 +119,21 @@ public class PhoneServerHarness {
             storeTests(); encoderTests(); policyTests(); return;
         }
         if(args.length>0&&args[0].equals("smooth"))store.configure("smooth");
+        final boolean avc=args.length>0&&args[0].equals("avc");
         TransportPolicy streamPolicy=new TransportPolicy();streamPolicy.setProfile(store.fps()==60?"smooth":"sharp");
         PairingServer server = new PairingServer(InetAddress.getByName("127.0.0.1"), 8476, store, streamPolicy);
         server.setResumeKey("0123456789abcdef0123456789abcdef");
         final byte[] pixels=java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("tests/fixtures/frame-"+store.width()+"x"+store.height()+".jpg"));
-        store.heartbeat(); store.publishJpeg(pixels); server.start();
+        // Synthetic NALs test transport/reference handling, not a real decoder.
+        final byte[] idr={0,0,0,1,0x67,1,0,0,0,1,0x65,2},delta={0,0,0,1,0x41,3};
+        if(avc){
+            store.setFormat("h264-annexb");
+            server.setVideoControl(new PairingServer.VideoControl(){
+                public String configure(String mode){return mode.equals("h264")?null:"Synthetic AVC harness only";}
+                public void keyframe(){store.publishAvc(idr);}
+            });
+        }
+        store.heartbeat(); if(avc)store.publishAvc(idr);else store.publishJpeg(pixels); server.start();
         ScheduledExecutorService capture = Executors.newScheduledThreadPool(2);
         ScheduledFuture<?> heartbeat = capture.scheduleAtFixedRate(new Runnable() { public void run() { store.heartbeat(); } }, 0, 100, TimeUnit.MILLISECONDS);
         ScheduledFuture<?> animation = null;
@@ -108,6 +144,9 @@ public class PhoneServerHarness {
                 if (command.equals("quit")) break;
                 if (command.equals("hide")) store.visible(false);
                 if (command.equals("show")) store.visible(true);
+                if (command.equals("delta")) store.publishAvc(delta);
+                if (command.equals("idr")) store.publishAvc(idr);
+                if (command.equals("avcburst")) for(int i=0;i<10;i++){store.publishAvc(delta);Thread.sleep(45);}
                 if (command.equals("animate")) {
                     final int[] phase = {0};
                     animation = capture.scheduleAtFixedRate(new Runnable() { public void run() {

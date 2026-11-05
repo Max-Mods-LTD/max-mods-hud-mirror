@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Generated from connection_guide.json.
+'use strict';
+module.exports = {
+  "pages": [
+    {
+      "title": "1. What needs to be connected",
+      "lines": [
+        "BMW Wi-Fi carries the picture. Keep it switched on.",
+        "BMW Bluetooth media or Android Auto carries sound.",
+        "Park the car in P before starting the mirror."
+      ]
+    },
+    {
+      "title": "2. Switch on BMW Wi-Fi",
+      "lines": [
+        "In iDrive, open COM / Communication > Mobile devices.",
+        "Move the controller right, then open Settings.",
+        "Turn on Wi-Fi. Labels vary with BMW software."
+      ]
+    },
+    {
+      "title": "3. Find the BMW network",
+      "lines": [
+        "Mobile devices > New device > Internet, apps.",
+        "The car shows its Wi-Fi name and password, if equipped.",
+        "Some versions show these under Mobile devices > Settings.",
+        "Already on BMW Wi-Fi through Android Auto? Keep that link."
+      ]
+    },
+    {
+      "title": "4. Join from your phone",
+      "lines": [
+        "Samsung: Settings > Connections > Wi-Fi.",
+        "Select the network name shown by the BMW; enter its password.",
+        "If warned that it has no Internet, choose Stay connected.",
+        "Use the same BMW network, not garage Wi-Fi or a phone hotspot."
+      ]
+    },
+    {
+      "title": "5. Connect the sound",
+      "lines": [
+        "iDrive: COM > Mobile devices > your phone.",
+        "Enable Bluetooth audio and select it under MEDIA / Radio.",
+        "On the phone, allow Media audio for the BMW Bluetooth device.",
+        "Or keep your working Android Auto sound connection."
+      ]
+    },
+    {
+      "title": "6. Pair once and start",
+      "lines": [
+        "Phone app: Start sharing, then approve the entire screen.",
+        "Car app: Pair phone. Type the phone address/code as shown.",
+        "This code is separate from the BMW Wi-Fi password.",
+        "After pairing, starting on the phone starts the chosen screen."
+      ]
+    },
+    {
+      "title": "7. If sound slows the picture",
+      "lines": [
+        "Phone app > Display > Sound coexistence > Audio priority.",
+        "Keep BMW Wi-Fi connected while Bluetooth sound is playing.",
+        "Use 5 GHz only if your factory BMW menu offers that choice.",
+        "Changed Wi-Fi? Restart sharing, then pair the new address."
+      ]
+    }
+  ],
+  "notes": [
+    "The mirror uses a local Wi-Fi link. BMW Internet/data subscriptions are separate.",
+    "Internet access for online videos depends on your phone or BMW data connection.",
+    "The app never changes the BMW Wi-Fi channel or audio routing automatically."
+  ],
+  "sources": [
+    "https://www.bmwusa.com/content/dam/bmw/common/connected-drive/pdf/GSG_WiFi_Hotspot.pdf",
+    "https://faq.bmwusa.com/s/article/FAQ-Connectivity-WiFi-Password-Hotspot-OS7-BMW-USA-zIl7M",
+    "https://www.bmwusa.com/content/dam/bmw/marketUS/common/connected-drive/pdf/GSG_CarPlay.pdf"
+  ]
+};

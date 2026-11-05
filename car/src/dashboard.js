@@ -2,7 +2,7 @@
 'use strict';
 const {RenderClient}=require('./mgu_render_client.js');
 const {GpuCanvas,kit}=require('./gpu_canvas.js');
-const qr=require('./qrcode.js'),release=require('./release_notes.js');
+const release=require('./release_notes.js');
 const C={bg:'#0c0d10',panel:'#1b1d23',muted:'#b5bac5',line:'#353943',red:'#c8121b',green:'#55c38e'};
 class Dashboard{
  constructor(app,log){
@@ -48,19 +48,14 @@ class Dashboard{
   c.text('HUD Mirror',x,18,40,'#ffffff');const blocked=a.guard.reason();c.text(blocked?'Park required':'Park confirmed',right-270,28,24,blocked?'#f0b57c':C.green,270);
   this.button(c,'force','Force close',right-238,h-70,238,()=>a.forceClose());
   if(this.tab===0){
-   if(a.qr.url){
-    c.text('Scan to connect',x,94,36,'#ffffff');const code=qr(0,'M');code.addData(a.qr.url);code.make();const count=code.getModuleCount(),cell=Math.max(2,Math.floor(274/(count+8))),side=(count+8)*cell;
-    c.rect(x,164,side,side,'#ffffff');for(let r=0;r<count;r++)for(let col=0;col<count;col++)if(code.isDark(r,col))c.rect(x+(col+4)*cell,164+(r+4)*cell,cell,cell,'#000000');
-    const tx=x+side+34,tw=right-tx;c.text('1. Start sharing on the phone',tx,168,28,'#ffffff',tw).text('2. Tap Scan car QR',tx,214,28,'#ffffff',tw).text('Mirroring starts after pairing.',tx,270,24,C.green,tw);
-    const bw=(tw-16)/2;this.button(c,'cancelqr','Cancel',tx,332,bw,()=>a.qr.close());this.button(c,'manual','Pair manually',tx+bw+16,332,bw,()=>a.pairPhone());
-   }else{
-    c.text(m.starting?'Connecting to your phone...':m.running?'Mirroring is active':'Connect once. Start in one place.',x,95,36,'#ffffff',body);
-    c.lines(m.status,x,145,24,C.muted,body,2);c.rect(x,217,body,84,C.panel).rect(x,217,5,84,C.red);
-    c.text(m.pairing?'PHONE PAIRED':'PHONE NOT PAIRED',x+23,224,22,C.muted).text(m.pairing?'Start on the phone to mirror automatically':'Pair with QR or enter the phone code',x+23,254,28,'#ffffff',body-46);
-    const gap=16,bw=(body-2*gap)/3;this.button(c,'start',m.starting?'Cancel start':m.running?'Stop mirror':'Start mirror',x,327,bw,()=>m.running||m.starting?a.stopMirror():a.startMirror(false),true);
-    this.button(c,'qr','Pair with QR',x+bw+gap,327,bw,()=>a.pairQr());this.button(c,'manual','Pair manually',x+2*(bw+gap),327,bw,()=>a.pairPhone());
-    c.text('Sound uses your existing BMW Bluetooth / Android Auto route.',x,410,24,C.muted,body-260);
-   }
+   c.text(m.starting?'Connecting to your phone...':m.running?'Mirroring is active':'Connect once. Start in one place.',x,95,36,'#ffffff',body);
+   c.lines(m.status,x,145,24,C.muted,body,2);c.rect(x,217,body,84,C.panel).rect(x,217,5,84,C.red);
+   c.text(m.pairing?'PHONE PAIRED':'PHONE NOT PAIRED',x+23,224,22,C.muted).text(m.pairing?'Pair once. Start on the phone next time.':'Start sharing, then enter the phone address/code.',x+23,254,28,'#ffffff',body-46);
+   const gap=16,bw=(body-2*gap)/3;
+   this.button(c,'start',m.starting?'Cancel start':m.running?'Stop mirror':'Start mirror',x,327,bw,()=>m.running||m.starting?a.stopMirror():a.startMirror(false),true);
+   this.button(c,'manual','Pair phone',x+bw+gap,327,bw,()=>a.pairPhone());
+   this.button(c,'guide','Setup guide',x+2*(bw+gap),327,bw,()=>a.chooseGuide());
+   c.lines('Wi-Fi for picture. BMW Bluetooth / Android Auto for sound.',x,402,22,C.muted,body-260,2);
   }else if(this.tab===1){
    c.text('Display destination',x,95,36,'#ffffff');c.rect(x,156,body,104,C.panel).text('ONE SCREEN AT A TIME',x+22,168,22,C.muted);
    this.button(c,'picker',(m.target==='map'?'Instrument cluster':m.target==='idrive'?'iDrive screen':'Head-up display')+'  >',x+16,198,body-32,()=>a.chooseDisplay());
@@ -75,7 +70,7 @@ class Dashboard{
   }
   return c;
  }
- render(force){if(!this.visible||!this.info)return;const a=this.app,key=JSON.stringify([this.tab,this.focus,a.mirror.status,a.mirror.running,a.mirror.starting,!!a.mirror.pairing,a.mirror.layout,a.mirror.target,a.background,a.guard.reason(),a.qr.url,a._releaseIndex,this.surface&&this.surface.visible,this.controls]);
+ render(force){if(!this.visible||!this.info)return;const a=this.app,key=JSON.stringify([this.tab,this.focus,a.mirror.status,a.mirror.running,a.mirror.starting,!!a.mirror.pairing,a.mirror.layout,a.mirror.target,a.background,a.guard.reason(),a._releaseIndex,this.surface&&this.surface.visible,this.controls]);
   if(!force&&key===this.lastKey)return;this.lastKey=key;this.recording=this.frame();this.gpu.claim(this.surface&&!this.controls?[{x:0,y:0,w:this.width,h:this.height}]:this.items.map(b=>({x:b.x,y:b.y,w:b.w,h:b.h})));
   if(a.syncFocusProxies)a.syncFocusProxies(this.items,this.surface&&!this.controls);this.sendFrame();
  }

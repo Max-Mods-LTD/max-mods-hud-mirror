@@ -54,11 +54,15 @@ assert(names.some(n=>n.endsWith('assets/jpeg-decoder')));
 assert(names.some(n=>n.endsWith('assets/brand.json')));
 assert(names.some(n=>n.endsWith('assets/decoder-source/main.c')));
 assert.strictEqual(repo.name,'MaxModsIdriveApps');
-for(const id of ['maxmods-display60','maxmods-connect','maxmods-video']){
+for(const id of ['maxmods-display60','maxmods-video']){
     const tool=repo.components.find(c=>c.id===id);assert(tool&&tool.optional&&tool.kind==='tool');
     assert(!Object.prototype.hasOwnProperty.call(tool,'build'),'The Store rejects a build field on repo tools: '+id);
 }
 assert.strictEqual(ui.containers['2'].name,'ST_MaxModsDashboard');
+assert(!repo.components.some(c=>c.id==='maxmods-connect'));assert(!repo.components[0].requires['maxmods-connect']);
+assert(!manifest.modules.some(m=>/qr_pairing|qrcode/.test(m)));assert(!/android.permission.CAMERA|ScannerActivity/.test(android));
+assert(rows.some(r=>r.name==='mirrorGuide'));assert(!rows.some(r=>r.name==='mirrorQr'));assert.strictEqual(ui.containers['7'].name,'ST_MaxModsConnectionGuide');
+const guide=require('../car/src/connection_guide.js');assert.deepStrictEqual(guide,JSON.parse(fs.readFileSync(path.join(root,'android/app/src/main/assets/connection_guide.json'))));
 const rawTar=require('zlib').gunzipSync(fs.readFileSync(built));
 let nativeMode=null;for(let at=0;at+512<=rawTar.length;){const name=rawTar.slice(at,at+100).toString().replace(/\0.*$/,'');if(!name)break;const size=parseInt(rawTar.slice(at+124,at+136).toString(),8)||0;if(name.endsWith('assets/jpeg-decoder'))nativeMode=parseInt(rawTar.slice(at+100,at+108).toString(),8);at+=512+Math.ceil(size/512)*512;}
 assert.strictEqual(nativeMode,0o755,'Car build stripped decoder execute permission');

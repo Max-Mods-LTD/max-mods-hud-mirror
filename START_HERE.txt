@@ -1,6 +1,9 @@
-MAX MODS iDrive Apps — HUD Mirror 0.5.0
+MAX MODS iDrive Apps — HUD Mirror 0.5.1
 
-1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.5.0.
+0. Missing Connect error? This 0.5.1 car-only fix makes all helpers available.
+   Keep Android 0.5.0 if already installed. No phone update needed.
+
+1. Car Store > Settings > Check now. Update Max Mods HUD Mirror to 0.5.1.
    Its dependencies include Connect 0.2.0 and GPU Video 0.1.0.
 2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.5.0.apk over the phone app.
 3. Park in P. Keep your working Bluetooth / Android Auto sound connection.

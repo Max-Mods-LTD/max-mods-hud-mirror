@@ -54,7 +54,10 @@ assert(names.some(n=>n.endsWith('assets/jpeg-decoder')));
 assert(names.some(n=>n.endsWith('assets/brand.json')));
 assert(names.some(n=>n.endsWith('assets/decoder-source/main.c')));
 assert.strictEqual(repo.name,'MaxModsIdriveApps');
-for(const id of ['maxmods-display60','maxmods-connect','maxmods-video'])assert(repo.components.some(c=>c.id===id&&c.optional&&c.build==='unit'));
+for(const id of ['maxmods-display60','maxmods-connect','maxmods-video']){
+    const tool=repo.components.find(c=>c.id===id);assert(tool&&tool.optional&&tool.kind==='tool');
+    assert(!Object.prototype.hasOwnProperty.call(tool,'build'),'The Store rejects a build field on repo tools: '+id);
+}
 assert.strictEqual(ui.containers['2'].name,'ST_MaxModsDashboard');
 const rawTar=require('zlib').gunzipSync(fs.readFileSync(built));
 let nativeMode=null;for(let at=0;at+512<=rawTar.length;){const name=rawTar.slice(at,at+100).toString().replace(/\0.*$/,'');if(!name)break;const size=parseInt(rawTar.slice(at+124,at+136).toString(),8)||0;if(name.endsWith('assets/jpeg-decoder'))nativeMode=parseInt(rawTar.slice(at+100,at+108).toString(),8);at+=512+Math.ceil(size/512)*512;}

@@ -1,6 +1,6 @@
 # Max Mods iDrive Apps
 
-**HUD Mirror 0.5.0** for BMW iDrive 7, with Android companion 0.5.0.
+**HUD Mirror 0.5.1** for BMW iDrive 7, with Android companion 0.5.0.
 This source can hold more Max Mods apps in future. Its catalog name is
 **MaxModsIdriveApps**. Keep the working source URL
 **Max-Mods-LTD/max-mods-hud-mirror**, branch **main**; the GitHub repository
@@ -8,8 +8,14 @@ itself has not been renamed.
 
 ## Update and connect
 
+Version 0.5.1 fixes the Store error saying no source has maxmods-connect 0.2.0.
+The three helpers were incorrectly given an app build flag, which made the
+Store omit them. They are now listed and installed as tools. In the car, use
+Store > Settings > Check now, then install HUD Mirror 0.5.1. Keep Android 0.5.0;
+this hotfix does not require another phone download.
+
 1. Keep the robertnisipeanu/idrive-apps and robertnisipeanu/mgu-store sources
-   enabled. Refresh the car Store and update **Max Mods HUD Mirror to 0.5.0**.
+   enabled. Refresh the car Store and update **Max Mods HUD Mirror to 0.5.1**.
    Its dependencies include **Max Mods Connect 0.2.0** and **Max Mods GPU Video
    0.1.0**. The latter is an adapter; it does not install or patch Waze.
 2. Install [Android companion 0.5.0](https://raw.githubusercontent.com/Max-Mods-LTD/max-mods-hud-mirror/main/downloads/Max_Mods_HUD_Mirror_Android_v0.5.0.apk)

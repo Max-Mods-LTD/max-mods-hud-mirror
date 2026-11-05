@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "id": "maxmods_hud_mirror",
-  "version": "0.5.0",
-  "tree": "maxmods_hud_mirror@0.5.0",
+  "version": "0.5.1",
+  "tree": "maxmods_hud_mirror@0.5.1",
   "internet": true,
   "modules": [
     "src/app.js",

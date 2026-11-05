@@ -1,9 +1,26 @@
-# Validation — HUD Mirror 0.5.0
+# Validation — HUD Mirror 0.5.1
 
 Host checks completed 5 November 2026. These are source/package, protocol and
 host rendering checks, not an MGU emulator or a physical phone/car benchmark.
 
-## Passed
+## 0.5.1 installation hotfix
+
+The reported car error was reproduced with the actual upstream Store reader:
+all three tools were skipped because a repo tool must not have a build field.
+The old packaging test incorrectly expected that field. Removing it restores
+Connect 0.2.0, GPU Video 0.1.0 and Display60 0.1.0 in the parsed source.
+
+The new tests/test_store_source.js uses mgu-store's real source reader, packer
+and dependency planner. It verifies all four entries with no skips, helper
+installation before HUD Mirror, upgrades from Connect 0.1.0, helper file/unit
+checksums and permissions, and reproduces the exact old missing-Connect error.
+This is an offline source/plan check; physical install acceptance is not claimed.
+
+Run with MGU_STORE_CHECKOUT pointing to robertnisipeanu/mgu-store. Checked
+against ee34705eb3e682949acaf9106155a740f1012982, updater 0.8.21.
+Android 0.5.0 and all playback/vehicle code are unchanged by this car-only fix.
+
+## Prior runtime checks and current packaging checks
 
 - **21 car controller cases**: zero speed/Park, invalid/stale data, late
   callbacks, stopped/hidden capture, bounded recovery, all three destinations,
@@ -96,7 +113,7 @@ Run the Node checks in tests/test_car.js, test_vehicle_signals.js,
 test_app_lifecycle.js, test_stream_decoder.js, test_qr_pairing.js,
 test_connect.js, test_display60.js, test_dashboard.js, test_idrive_renderer.js,
 test_gpu_video_renderer.js, test_gpu_fifo.js, test_video_helper.js and
-test_package.js.
+test_package.js and test_store_source.js (requires MGU_STORE_CHECKOUT).
 
 Compile PhoneServerHarness.java / AvcStoreHarness.java with FrameStore,
 FrameEncoder, AnnexB, PairingServer and TransportPolicy into build/phone-tests.

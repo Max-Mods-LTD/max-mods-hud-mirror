@@ -1,7 +1,8 @@
-# Requested feature coverage — 0.5.0
+# Requested feature coverage — 0.5.1
 
 | Request | Implementation | Physical check / limit |
 | --- | --- | --- |
+| Missing Connect / helpers blocked update | Removed invalid build flags from tools; actual Store parser lists all four components and plans helpers before the app | Car install acceptance still needs checking |
 | Less lag / pixelation; use Waze GPU path | Automatic hardware AVC with a separate installed Waze decoder; no level rounding; JPEG fallback | New hardware path untested; shared packing/budget still apply |
 | 30 / 60 fps | Sharp/Smooth targets, hardware encoder negotiation, optional Display60 clock | Host link 29.0/57.5 fps; no measured car fps |
 | BMW Bluetooth / Android Auto audio | Existing audio route, low-bandwidth AVC or JPEG coexistence modes | Actual wireless audio/network coexistence |

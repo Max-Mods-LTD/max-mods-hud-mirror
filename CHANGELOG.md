@@ -1,5 +1,11 @@
 # Release notes
 
+## Car 0.5.1 / Android 0.5.0
+
+- Fixed the Store source listing so Connect, GPU Video and Display60 are available to install.
+- The Store can now find and install the helpers required by HUD Mirror automatically.
+- Car installation fix only. The Android 0.5.0 phone app stays compatible and needs no update.
+
 ## Car 0.5.0 / Android 0.5.0
 
 - GPU-drawn full-width iDrive interface replaces slow full-screen bitmap uploads.

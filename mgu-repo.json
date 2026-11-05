@@ -10,7 +10,7 @@
       "build": "unit",
       "title": "Max Mods HUD Mirror",
       "description": "Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "mguHmi": [
         "ID7"
       ],
@@ -54,8 +54,7 @@
         "profile.js",
         "disable"
       ],
-      "path": "tools/Display60",
-      "build": "unit"
+      "path": "tools/Display60"
     },
     {
       "id": "maxmods-connect",
@@ -112,8 +111,7 @@
         "bridge.js",
         "deactivate"
       ],
-      "path": "tools/Connect",
-      "build": "unit"
+      "path": "tools/Connect"
     },
     {
       "id": "maxmods-video",
@@ -166,8 +164,7 @@
         "engine.js",
         "activate"
       ],
-      "path": "tools/Video",
-      "build": "unit"
+      "path": "tools/Video"
     }
   ]
 }

@@ -145,9 +145,11 @@ write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree':
 write(ROOT / 'mgu-repo.json', {'schema': 1, 'name': 'MaxModsIdriveApps', 'title': 'Max Mods iDrive Apps', 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
     'description': 'Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.', 'version': VERSION, 'mguHmi': ['ID7'],
     'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11','maxmods-connect':'0.2.0','maxmods-video':'0.1.0'}},
-    dict(json.loads((ROOT / 'tools/Display60/component.json').read_text()), path='tools/Display60', build='unit'),
-    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect', build='unit'),
-    dict(json.loads((ROOT / 'tools/Video/component.json').read_text()), path='tools/Video', build='unit')]})
+    # Repo-tree tools are already programs/files. The updater rejects any
+    # build field on a tool; only the app uses build='unit'.
+    dict(json.loads((ROOT / 'tools/Display60/component.json').read_text()), path='tools/Display60'),
+    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect'),
+    dict(json.loads((ROOT / 'tools/Video/component.json').read_text()), path='tools/Video')]})
 image = Image.new('RGBA', (140, 140), (0,0,0,0))
 logo = Image.open(ROOT / 'assets' / 'max-mods-logo-stacked.png').convert('RGBA')
 logo.thumbnail((130,80), Image.Resampling.LANCZOS)
@@ -161,7 +163,9 @@ phone_icon = ROOT / 'android/app/src/main/res/drawable/maxmods_icon.png'
 phone_icon.parent.mkdir(parents=True, exist_ok=True); shutil.copy(icon, phone_icon)
 shutil.copytree(CAR / 'assets', TREE / 'assets', dirs_exist_ok=True)
 shutil.copy(ROOT / 'assets' / 'DejaVu-LICENSE.txt', TREE / 'assets' / 'DejaVu-LICENSE.txt')
-shutil.copy(ROOT / 'release_notes.json', ROOT / 'android/app/src/main/assets/release_notes.json')
+# A car-only hotfix keeps the already-published phone APK/source unchanged.
+if RELEASE['phoneVersion'] == VERSION:
+    shutil.copy(ROOT / 'release_notes.json', ROOT / 'android/app/src/main/assets/release_notes.json')
 shutil.copy(ROOT / 'LICENSE', TREE / 'LICENSE')
 if (ROOT / 'THIRD_PARTY_NOTICES.md').exists(): shutil.copy(ROOT / 'THIRD_PARTY_NOTICES.md', TREE / 'THIRD_PARTY_NOTICES.md')
 print('Generated', TREE)

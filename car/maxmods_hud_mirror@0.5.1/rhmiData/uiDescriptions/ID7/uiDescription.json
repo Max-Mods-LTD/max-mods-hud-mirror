@@ -109,7 +109,7 @@
           "rows": [
             {
               "Text": {
-                "value": "Car 0.5.0 / phone 0.5.0",
+                "value": "Car 0.5.1 / phone 0.5.0",
                 "type": "Text"
               }
             }
@@ -373,7 +373,7 @@
           "rows": [
             {
               "Text": {
-                "value": "What's new in 0.5.0 (1/14)",
+                "value": "What's new in 0.5.1 (1/3)",
                 "type": "Text"
               }
             }
@@ -395,7 +395,7 @@
           "rows": [
             {
               "Text": {
-                "value": "GPU-drawn full-width iDrive interface replaces slow",
+                "value": "Fixed the Store source listing so Connect, GPU Video and",
                 "type": "Text"
               }
             }
@@ -417,7 +417,7 @@
           "rows": [
             {
               "Text": {
-                "value": "full-screen bitmap uploads.",
+                "value": "Display60 are available to install.",
                 "type": "Text"
               }
             }

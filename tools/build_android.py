@@ -20,6 +20,8 @@ sdk = pathlib.Path(os.environ['ANDROID_SDK_ROOT'])
 tools = sdk / 'build-tools' / '35.0.0'
 android = sdk / 'platforms' / 'android-35' / 'android.jar'
 ecj = pathlib.Path(os.environ['ECJ_JAR'])
+zxing = ROOT / 'android/third_party/zxing-core-3.5.3.jar'
+assert hashlib.sha256(zxing.read_bytes()).hexdigest() == '8d8064c1636fdaef7189dd9055c7d59950a8940a12f2293956446ec3c109fd82', 'Unexpected ZXing dependency bytes'
 sources = sorted((ROOT / 'android' / 'app' / 'src' / 'main' / 'java').rglob('*.java'))
 classes = OUT / 'classes'
 if classes.exists(): shutil.rmtree(classes)
@@ -28,14 +30,14 @@ classes.mkdir()
 def run(*args):
     subprocess.run([str(x) for x in args], check=True)
 
-run('java', '-jar', ecj, '-8', '-proc:none', '-warn:none', '-classpath', android, '-d', classes, *sources)
+run('java', '-jar', ecj, '-8', '-proc:none', '-warn:none', '-classpath', str(android) + os.pathsep + str(zxing), '-d', classes, *sources)
 jar = OUT / 'classes.jar'
 with zipfile.ZipFile(jar, 'w', zipfile.ZIP_DEFLATED) as z:
     for p in sorted(classes.rglob('*.class')):
         z.write(p, p.relative_to(classes).as_posix())
-run(tools / 'd8', '--min-api', '26', '--lib', android, '--output', OUT, jar)
+run(tools / 'd8', '--min-api', '26', '--lib', android, '--output', OUT, jar, zxing)
 unsigned = OUT / 'unsigned.apk'
-run(tools / 'aapt', 'package', '-f', '-M', ROOT / 'android' / 'app' / 'src' / 'main' / 'AndroidManifest.xml', '-I', android, '-F', unsigned)
+run(tools / 'aapt', 'package', '-f', '-M', ROOT / 'android' / 'app' / 'src' / 'main' / 'AndroidManifest.xml', '-I', android, '-S', ROOT / 'android/app/src/main/res', '-A', ROOT / 'android/app/src/main/assets', '-F', unsigned)
 with zipfile.ZipFile(unsigned, 'a', zipfile.ZIP_DEFLATED) as z:
     z.write(OUT / 'classes.dex', 'classes.dex')
 aligned = OUT / 'aligned.apk'

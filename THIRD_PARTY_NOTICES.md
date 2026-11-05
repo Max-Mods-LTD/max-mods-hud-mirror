@@ -20,3 +20,48 @@ VIN, vehicle key or proprietary donor bundle is included.
 
 The complete GPL-3.0 text is in `LICENSE`. The head unit links the
 app against its own existing BMW SDK during installation.
+
+- `native/jpeg-decoder/stb_image.h`: Sean Barrett and contributors, stb_image 2.30,
+  commit f0569113c93ad095470c54bf34a17b36646bbbb5. JPEG-only build; the
+  complete MIT/public-domain dual licence is retained at the end of the header.
+- `car/src/qrcode.js`: Kazuhiko Arase, MIT, from
+  https://github.com/kazuhikoarase/qrcode-generator/tree/master/js/dist.
+  The downloaded source is pinned by the repository commit containing it.
+- `car/src/mgu_render_client.js`: Robert Nisipeanu/IterioDev community renderer
+  client from robertnisipeanu/mgu-store, based on IterioDev's MIT-licensed
+  transport (Copyright 2026 cauliflowermossgrape); original attribution retained.
+- `android/third_party/zxing-core-3.5.3.jar`: ZXing authors, Apache-2.0.
+  Provenance and checksum are beside the JAR; full licence is in
+  `licenses/Apache-2.0.txt`. No Google service, tracking or cloud decoder is used.
+- `car/assets/brand.json`: derived DejaVu Sans glyph pixels. Bitstream/DejaVu
+  notices are in `assets/DejaVu-LICENSE.txt`, also included in the car package.
+- `assets/max-mods-logo.png`: official Max Mods artwork used at the director's
+  request. Source/provenance in `assets/README.md`; brand rights remain with
+  Max Mods.
+
+MIT-licensed portions (QR generator and original renderer transport):
+
+Copyright (c) 2009 Kazuhiko Arase.
+Copyright (c) 2026 cauliflowermossgrape.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+The JPEG worker statically links musl libc 1.2.5 (MIT), commit
+0784374d561435f7c787a555aeab8ede699ed298. Its full COPYRIGHT is in
+`licenses/musl-COPYRIGHT.txt` and the car package decoder-source directory.

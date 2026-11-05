@@ -50,5 +50,14 @@ assert(rows.some((r) => r.name === 'mirrorReleaseLine1' && r.rows[0].Text.value 
 ['mirrorReleasePrevious','mirrorReleaseNext'].forEach((name) => assert(rows.some((r) => r.name === name && r.type === 'button')));
 const android = fs.readFileSync(path.join(root, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
 assert(android.indexOf('android:versionName="' + release.phoneVersion + '"') >= 0);
+assert(names.some(n=>n.endsWith('assets/jpeg-decoder')));
+assert(names.some(n=>n.endsWith('assets/brand.json')));
+assert(names.some(n=>n.endsWith('assets/decoder-source/main.c')));
+assert.strictEqual(repo.name,'MaxModsIdriveApps');
+for(const id of ['maxmods-display60','maxmods-connect'])assert(repo.components.some(c=>c.id===id&&c.optional&&c.build==='unit'));
+assert.strictEqual(ui.containers['2'].name,'ST_MaxModsDashboard');
+const rawTar=require('zlib').gunzipSync(fs.readFileSync(built));
+let nativeMode=null;for(let at=0;at+512<=rawTar.length;){const name=rawTar.slice(at,at+100).toString().replace(/\0.*$/,'');if(!name)break;const size=parseInt(rawTar.slice(at+124,at+136).toString(),8)||0;if(name.endsWith('assets/jpeg-decoder'))nativeMode=parseInt(rawTar.slice(at+100,at+108).toString(),8);at+=512+Math.ceil(size/512)*512;}
+assert.strictEqual(nativeMode,0o755,'Car build stripped decoder execute permission');
 console.log('PASS Store package, module linking against made-up SDK stubs, Node syntax, source-only distribution and read-only vehicle declarations');
 console.log('This is not an MGU emulator or hardware test. The fake donor is never distributed.');

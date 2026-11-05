@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "id": "maxmods_hud_mirror",
-  "version": "0.3.0",
-  "tree": "maxmods_hud_mirror@0.3.0",
+  "version": "0.4.0",
+  "tree": "maxmods_hud_mirror@0.4.0",
   "internet": true,
   "modules": [
     "src/app.js",
@@ -13,7 +13,13 @@
     "src/stream_decoder.js",
     "src/mirror_controller.js",
     "src/release_notes.js",
-    "src/cluster_render_client.js"
+    "src/cluster_render_client.js",
+    "src/jpeg_worker.js",
+    "src/qr_pairing.js",
+    "src/qrcode.js",
+    "src/dashboard.js",
+    "src/brand_canvas.js",
+    "src/mgu_render_client.js"
   ],
   "sdk": [
     "oap-sdk/src/core/OnlineApp.js",

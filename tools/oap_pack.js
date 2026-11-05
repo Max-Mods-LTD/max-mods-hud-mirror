@@ -4,7 +4,7 @@
 /**
  * Packs an app's staged tree into its flat OAP tgz: the package.json files[]
  * expansion at the archive root (no package/ prefix), regular files only,
- * sorted, ustar headers with owner 0:0, mode 0644 and one fixed mtime, gzip
+ * sorted, ustar headers with owner 0:0, ordinary files 0644, executables 0755 and one fixed mtime, gzip
  * with no name, no time and the OS byte set to Unix. The bytes depend only
  * on the tree (and the zlib build), not on the machine or the time, and the
  * archive cannot carry macOS extended attributes, which the head unit's tar
@@ -115,7 +115,7 @@ function stampPackage(pkgDir) {
 function pack(pkgDir, outFile) {
     const pkg = stampPackage(pkgDir);
     const files = members(pkgDir, pkg);
-    const entries = files.map((rel) => ({ name: rel, data: fs.readFileSync(path.join(pkgDir, rel)), mode: 0o644 }));
+    const entries = files.map((rel) => ({ name: rel, data: fs.readFileSync(path.join(pkgDir, rel)), mode: (fs.statSync(path.join(pkgDir, rel)).mode & 0o111) ? 0o755 : 0o644 }));
     fs.writeFileSync(outFile, tgz(entries, MTIME));
     return files;
 }

@@ -1,49 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
-const assert = require('assert');
-const zlib = require('zlib');
-const { StreamDecoder, inflateFrame, BYTES, MAX_WIRE_BYTES } = require('../car/src/stream_decoder.js');
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-function record(kind, id, payload) {
-    payload = payload || Buffer.alloc(0);
-    const header = Buffer.alloc(13); header.writeUInt32LE(payload.length, 0); header[4] = kind;
-    header.writeUInt32LE(id >>> 0, 5); header.writeUInt32LE(Math.floor(id / 0x100000000), 9);
-    return Buffer.concat([header, payload]);
-}
-async function until(fn) { for (let i = 0; i < 200; i++) { if (fn()) return; await delay(5); } throw new Error('Decode timed out'); }
-(async () => {
-    const pixels = Buffer.alloc(BYTES, 127), compressed = zlib.deflateSync(pixels, { level: 1 });
-    assert((await inflateFrame(compressed)).equals(pixels));
-    await assert.rejects(inflateFrame(zlib.deflateSync(Buffer.alloc(BYTES + 1))), /exceeded/);
-    await assert.rejects(inflateFrame(zlib.deflateSync(Buffer.alloc(4))), /size/);
-    await assert.rejects(inflateFrame(Buffer.from('broken')), /./);
-    const seen = [], states = [], errors = [];
-    const decoder = new StreamDecoder({ frame: (p, id) => { assert(p.equals(pixels)); seen.push(id); }, state: (s) => states.push(s), error: (e) => errors.push(e) });
-    const first = record(1, 1, compressed);
-    for (let i = 0; i < first.length; i++) decoder.push(first.slice(i, i + 1));
-    await until(() => seen.length === 1);
-    decoder.push(record(2, 1)); await delay(10); assert.deepStrictEqual(seen, [1]);
-    for (let id = 2; id <= 200; id++) decoder.push(record(1, id, compressed));
-    await until(() => seen[seen.length - 1] === 200);
-    assert(seen.length <= 4, 'slow decoding must discard intermediate frames instead of queueing them');
-    assert.strictEqual(errors.length, 0); assert(states.every((s) => s === 'active')); decoder.close();
-    console.log('PASS fragmented records, lossless bounded inflation, unchanged-screen heartbeats and latest-frame delivery');
-
-    const late = [], hidden = new StreamDecoder({ frame: (p, id) => late.push(id), state: () => {}, error: (e) => { throw e; } });
-    hidden.push(record(1, 1, compressed)); hidden.push(record(4, 1));
-    await delay(30); assert.deepStrictEqual(late, []);
-    hidden.push(record(2, 1)); await delay(10); assert.deepStrictEqual(late, []);
-    hidden.push(record(1, 2, compressed)); await until(() => late.length === 1); assert.deepStrictEqual(late, [2]); hidden.close();
-    console.log('PASS hiding the shared app discards an in-flight decode and requires a new picture');
-
-    for (const bad of [record(0, 0), record(1, 0, compressed), record(2, 1, Buffer.from('x')),
-        (() => { const h = Buffer.alloc(13); h.writeUInt32LE(MAX_WIRE_BYTES + 1); h[4] = 1; return h; })()]) {
-        let refused;
-        const d = new StreamDecoder({ frame: () => { throw new Error('bad record delivered'); }, state: () => {}, error: (e) => { refused = e; } });
-        d.push(bad); assert(refused); assert(d.closed);
-    }
-    let stopped;
-    const end = new StreamDecoder({ frame: () => {}, state: () => {}, error: (e) => { stopped = e; } });
-    end.push(record(5, 0)); assert(/capture stopped/.test(stopped.message));
-    console.log('PASS malformed/oversized records and capture-stop messages fail closed');
-})().catch((e) => { console.error(e); process.exitCode = 1; });
+const assert=require('assert'),fs=require('fs'),path=require('path');
+const {StreamDecoder,BYTES,MAX_WIRE_BYTES}=require('../car/src/stream_decoder.js');
+const {JpegWorker}=require('../car/src/jpeg_worker.js');
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+function record(kind,id,payload){payload=payload||Buffer.alloc(0);const h=Buffer.alloc(13);h.writeUInt32LE(payload.length,0);h[4]=kind;h.writeUInt32LE(id>>>0,5);h.writeUInt32LE(Math.floor(id/0x100000000),9);return Buffer.concat([h,payload]);}
+async function until(fn){for(let i=0;i<400;i++){if(fn())return;await delay(5);}throw new Error('Decode timed out');}
+(async()=>{
+ const jpeg=fs.readFileSync(path.join(__dirname,'fixtures/frame-768x432.jpg'));
+ const worker=new JpegWorker(768,432);const pixels=await worker.decode(jpeg);
+ assert.strictEqual(pixels.length,BYTES);assert(pixels[0]>220&&pixels[767]>220);
+ const begin=Date.now();for(let i=0;i<60;i++)await worker.decode(jpeg);const ms=Date.now()-begin;worker.close();
+ console.log('PASS bounded native JPEG color/atlas decode; 60 frames decoded in '+ms+' ms on host');
+ for(const bad of [Buffer.from('broken jpeg'),jpeg.slice(0,70),(()=>{const b=Buffer.from(jpeg);for(let i=0;i<b.length-10;i++)if(b[i]===255&&b[i+1]===192){b.writeUInt16BE(800,i+7);break;}return b;})()]){
+  const d=new JpegWorker(768,432);await assert.rejects(d.decode(bad));assert(d.closed);
+ }
+ const seen=[],states=[],errors=[];const d=new StreamDecoder({frame:(p,id)=>{assert(p.equals(pixels));seen.push(id);},state:s=>states.push(s),error:e=>errors.push(e)});
+ const first=record(1,1,jpeg);for(let i=0;i<first.length;i++)d.push(first.slice(i,i+1));await until(()=>seen.length===1);
+ d.push(record(2,1));await delay(10);assert.deepStrictEqual(seen,[1]);
+ for(let id=2;id<=200;id++)d.push(record(1,id,jpeg));await until(()=>seen[seen.length-1]===200);
+ assert(seen.length<=4,'old frames accumulated');assert.strictEqual(errors.length,0);assert(states.every(s=>s==='active'));d.close();
+ console.log('PASS fragmented JPEG records, still-screen heartbeats and one latest waiting frame');
+ const late=[],pending=[];const hidden=new StreamDecoder({frame:(p,id)=>late.push(id),state:()=>{},error:e=>{throw e;}},{decode:()=>new Promise(resolve=>pending.push(resolve))});
+ hidden.push(record(1,1,jpeg));hidden.push(record(4,1));pending.shift()(pixels);await delay(5);assert.deepStrictEqual(late,[]);
+ hidden.push(record(2,1));await delay(5);assert.deepStrictEqual(late,[]);
+ hidden.push(record(1,2,jpeg));pending.shift()(pixels);await until(()=>late.length===1);assert.deepStrictEqual(late,[2]);hidden.close();
+ console.log('PASS hiding content cancels an in-flight picture and requires a new capture');
+ for(const bad of [record(0,0),record(1,0,jpeg),record(2,1,Buffer.from('x')),(()=>{const h=Buffer.alloc(13);h.writeUInt32LE(MAX_WIRE_BYTES+1);h[4]=1;return h;})()]){
+  let refused;const x=new StreamDecoder({frame:()=>{throw new Error('bad frame delivered');},state:()=>{},error:e=>{refused=e;}});x.push(bad);assert(refused&&x.closed);
+ }
+ let stopped;const end=new StreamDecoder({frame:()=>{},state:()=>{},error:e=>{stopped=e;}});end.push(record(5,0));assert(/capture stopped/.test(stopped.message));
+ // Exercise legacy Store archives that strip the executable bit.
+ const binary=path.resolve(__dirname,'../car/assets/jpeg-decoder'),data=path.resolve(__dirname,'../data');const existed=fs.existsSync(data);if(!existed)fs.mkdirSync(data);
+ const saved=fs.statSync(binary).mode&0o777;let fallback;
+ try{fs.chmodSync(binary,0o644);fallback=new JpegWorker(768,432);assert((await fallback.decode(jpeg)).equals(pixels));assert(fallback.work&&fs.statSync(path.join(fallback.work,'decode')).mode&0o100);fallback.close();await delay(30);assert(!fallback.work);}
+ finally{fs.chmodSync(binary,saved);if(fallback)fallback.close();if(!existed)fs.rmdirSync(data);}
+ console.log('PASS malformed JPEG/bounds fail closed and non-executable Store archives use a private app-data decoder');
+})().catch(e=>{console.error(e);process.exitCode=1;});

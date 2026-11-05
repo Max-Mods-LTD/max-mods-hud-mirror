@@ -8,6 +8,9 @@ const { ParkGuard } = require('./park_guard.js');
 const { VehicleSignals } = require('./vehicle_signals.js');
 const { MirrorController } = require('./mirror_controller.js');
 const release = require('./release_notes.js');
+const { QrPairing } = require('./qr_pairing.js');
+const { Dashboard } = require('./dashboard.js');
+const { RenderClient } = require('./mgu_render_client.js');
 const logger = logging.getSDKLogger();
 const STATE = 'ST_MaxModsHudMirror';
 const NAMES = ['mirrorStatus', 'mirrorPark', 'mirrorPhone', 'mirrorTest', 'mirrorPair', 'mirrorStart', 'mirrorStop', 'mirrorLayout',
@@ -19,8 +22,15 @@ class HudMirrorApp extends OnlineApp {
         this._ui = {}; this._written = {}; this._actions = {}; this._pressAt = {};
         this._done = false; this._spelling = false; this._visible = false; this._hide = null;
         this._releaseIndex = 0;
+        this._drawn = false;
+        this.background = true;
         this.guard = new ParkGuard();
         this.mirror = new MirrorController(this.guard);
+        this.qr = new QrPairing(this.mirror);
+        this.dashboard = new Dashboard(this, logger);
+        this.qr.on('change', () => this.render());
+        this.qr.on('paired', () => { this.mirror.note('Phone paired. Select Start mirror.'); });
+        this.qr.on('expired', () => this.mirror.note('QR expired. Select Pair with QR for a new code.'));
         this.signals = new VehicleSignals(this.guard, () => { this.mirror.checkPark(); this.render(); });
         this.mirror.on('change', () => this.render());
         this.on('initialized', () => this.initUi().catch((e) => {
@@ -29,6 +39,8 @@ class HudMirrorApp extends OnlineApp {
         }));
         this.on('entryPointExecute', (uuid) => {
             this._visible = true;
+            this.dashboard.show(this._drawn);
+            this.reportVisibility(true);
             if (this.rhmiApplication) Promise.resolve(this.rhmiApplication.openEntryState(uuid)).catch(() => {});
         });
         this.on('changeVisibility', (d) => { if (d && d.visible === false && !this._spelling) this.hide(); });
@@ -39,6 +51,9 @@ class HudMirrorApp extends OnlineApp {
         if (!this.rhmiApplication) return this.initialized();
         const rhmi = this.rhmiApplication;
         this._state = rhmi.getByName(STATE);
+        if (RenderClient.available() && rhmi.getByName('ST_MaxModsDashboard')) {
+            this._state = rhmi.getByName('ST_MaxModsDashboard'); this._drawn = true;
+        }
         if (!this._state) throw new Error('Missing HUD Mirror page');
         NAMES.forEach((n) => {
             this._ui[n] = rhmi.getByName(n);
@@ -49,6 +64,13 @@ class HudMirrorApp extends OnlineApp {
         this.bind('mirrorStart', () => this.mirror.start(false));
         this.bind('mirrorStop', () => this.mirror.stop());
         this.bind('mirrorLayout', () => this.mirror.toggleLayout());
+        ['mirrorTarget','mirrorBackground','mirrorQr','mirrorStandard'].forEach((n) => { this._ui[n]=rhmi.getByName(n); });
+        if(this._ui.mirrorTarget)this.bind('mirrorTarget',()=>this.mirror.toggleTarget());
+        if(this._ui.mirrorBackground)this.bind('mirrorBackground',()=>this.toggleBackground());
+        if(this._ui.mirrorQr)this.bind('mirrorQr',()=>this.pairQr());
+        if(this._ui.mirrorStandard)this.bind('mirrorStandard',()=>{
+            this.dashboard.show(false); return rhmi.openState(STATE);
+        });
         this.bind('mirrorReleasePrevious', () => this.releaseNote(-1));
         this.bind('mirrorReleaseNext', () => this.releaseNote(1));
         rhmi.on('userEvent', (ev) => {
@@ -57,11 +79,11 @@ class HudMirrorApp extends OnlineApp {
         });
         this._state.on('visible', (ev) => {
             clearTimeout(this._hide);
-            if (ev && (ev.visible === true || ev.visible === 1 || ev.visible === '1')) this._visible = true;
+            if (ev && (ev.visible === true || ev.visible === 1 || ev.visible === '1')) { this._visible = true; this.dashboard.show(this._drawn); this.reportVisibility(true); }
             else if (!this._spelling) this._hide = setTimeout(() => this.hide(), 800);
         });
         rhmi.on('restoreHmi', () => { this._written = {}; this.render(); });
-        return this._state.updateResources().then(() => {
+        return rhmi.getByName(STATE).updateResources().then(() => this._state.updateResources()).then(() => {
             const entries = (this.appDescription && this.appDescription.application.entryPoints) || [];
             const ep = this.getEntryPoints().find((e) => entries.some((d) => d.uuid === e.getDescription().uuid));
             if (!ep) throw new Error('No HUD Mirror entry point');
@@ -75,6 +97,7 @@ class HudMirrorApp extends OnlineApp {
             return this.initialized();
         }).then(() => {
             this._visible = true;
+            this.dashboard.connect(); this.dashboard.show(this._drawn); this.reportVisibility(true);
             this.signals.start();
             this._refresh = setInterval(() => { this.mirror.checkPark(); this.render(); }, 300);
             this.render();
@@ -94,13 +117,28 @@ class HudMirrorApp extends OnlineApp {
         catch (e) { this.mirror.note(e.message); }
     }
     pairPhone() {
+        this.qr.close();
         this.mirror.stop();
         this._spelling = true;
+        this.dashboard.show(false);
         return spell(this, 'Phone address/code').then((text) => {
             this._spelling = false;
+            this.dashboard.show(this._visible && this._drawn);
             if (!this._done && text) return this.mirror.pair(text);
-        }, (e) => { this._spelling = false; throw e; });
+        }, (e) => { this._spelling = false; this.dashboard.show(this._visible && this._drawn); throw e; });
     }
+    pairQr() {
+        if (!this._drawn) { this.mirror.note('QR needs the Max Mods dashboard renderer. Use Pair phone.'); return; }
+        this.dashboard.tab=0;
+        this.mirror.stop('Waiting for phone QR scan'); return this.qr.start().then(()=>this.render());
+    }
+    reportVisibility(visible) {
+        const method = visible ? 'registerHmiVisible' : 'unregisterHmiVisible';
+        if (typeof this[method] === 'function') Promise.resolve(this[method]()).catch(()=>{});
+        // Keep the app active while its independent HUD/cluster layer runs.
+        if (this.background && this.mirror.running && typeof this.registerActive === 'function') Promise.resolve(this.registerActive()).catch(()=>{});
+    }
+    toggleBackground() { this.background=!this.background;this.render(); }
     write(name, text) {
         if (!this._ui[name] || this._written[name] === text) return;
         this._written[name] = text;
@@ -117,18 +155,24 @@ class HudMirrorApp extends OnlineApp {
         this.write('mirrorPark', ((blocked && this.signals.errors[0]) || blocked || 'Stationary, Park confirmed').slice(0, 95));
         this.write('mirrorPhone', this.mirror.pairing ? 'Phone paired: ' + this.mirror.pairing.host : 'Start sharing on your phone, then select Pair phone');
         this.write('mirrorLayout', this.mirror.layout === 'compact' ? 'HUD size: Compact (space below for BMW)' : 'HUD size: Full screen');
+        this.write('mirrorTarget',this.mirror.target==='hud'?'Display: Head-up display':'Display: Instrument cluster');
+        this.write('mirrorBackground','Keep mirroring on other pages: '+(this.background?'On':'Off'));
         this.write('mirrorWhatsNew', "What's new in " + release.version + ' (' + (this._releaseIndex + 1) + '/' + release.lines.length + ')');
         this.write('mirrorReleaseLine1', release.lines[this._releaseIndex][0]);
         this.write('mirrorReleaseLine2', release.lines[this._releaseIndex][1] || '');
+        if(this.dashboard)this.dashboard.render();
     }
     hide() {
         if (this._spelling) return;
         this._visible = false;
-        this.mirror.stop('Stopped: HUD Mirror page closed');
+        this.dashboard.show(false); this.qr.close();
+        this.reportVisibility(false);
+        if (!this.background) this.mirror.stop('Stopped: HUD Mirror page closed');
     }
     shutdown() {
         if (this._done) return;
         this._done = true; clearTimeout(this._hide); clearInterval(this._refresh);
+        this.qr.close(); this.dashboard.close();
         this.mirror.close();
         return this.signals.close().then(() => this.destroyBundles()).catch(() => {}).then(() => process.exit(0));
     }

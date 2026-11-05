@@ -1,117 +1,92 @@
-# Validation — car and Android prototype 0.3.0
+# Validation — HUD Mirror 0.4.0
 
-Checked on 4 November 2026.
+Host checks completed 5 November 2026. This is not an MGU emulator, an Android
+hardware test, an RF/audio test or a measured projector result.
 
 ## Passed
 
-- Bluetooth compatibility policy is tested with synthetic 2.4 GHz, 5 GHz
-  and unavailable-band inputs, audio-output availability, manual modes,
-  traffic pacing, slow writes, recovery and quiet-screen refinement.
-  These are policy tests, not an RF or Bluetooth playback test.
-- Reducing an intentionally noisy capture to the lowest detail setting
-  reduced an actual compressed test frame from 459,597 to 56,206 bytes.
-  The smaller result fits the 2 MiB/s Bluetooth-priority budget at 30 fps.
-  This reduces source detail; it does not retain the same picture quality.
-  The complete phone image and its canvas/aspect remain intact.
-- Recovery checks cover a new connection showing only a new live picture,
-  ignoring old-connection callbacks, and cancelling on Stop, leaving Park,
-  an explicit capture stop or exhaustion of three retries.
-- Real Java/HTTP/Node integration distinguishes a retryable replaced
-  connection from a terminal capture stop. Its latest transport run
-  measured 29.0 received fps with the server's new pacing.
-- The real Java server streamed a synthetic 30-fps producer through HTTP
-  to the real Node decoder. Earlier host runs measured 26.5–30.5 received fps.
-  This is not a benchmark of Android capture or the BMW projector.
-- A static picture stayed connected beyond the former 1.5-second cutoff,
-  using capture-worker liveness records without repeated picture transfers.
-  Hiding a shared app required a new picture on resume. Stalling the
-  capture worker closed the stream after its liveness deadline.
-- Java encoding tests preserve all four corners of portrait and landscape
-  captures, maintain aspect ratio, handle padded RGBA rows and produce the
-  renderer's full-range YUV atlas. Zlib round-trip checks are byte-exact
-  and cover incompressible input and maximum payload size.
-- Stream tests cover arbitrary TCP fragmentation, bounded inflation,
-  latest-frame delivery under load, hidden-content decode races, malformed
-  records, decompression overflow and explicit capture-stop records.
-- Compact layout keeps its picture above the lower HUD area. Tests cover
-  switching to Full screen live, fitting alternate target dimensions and
-  motion-packed upload traffic below the default renderer cap at 30 fps.
-- Current version and all six release notes are bundled into the native
-  car UI, with Previous/Next navigation and lines limited to 60 characters.
-- Car 0.1.1 removes unsupported getters from the two gear declarations.
-  All explicitly requested interfaces, fields, methods and events pass a
-  read-only check against the publicly attached 2020 reference catalog in
-  [upstream idrive7-apps issue #15](https://github.com/cauliflowermossgrape/idrive7-apps/issues/15).
-  This is not the user's firmware catalog;
-  no BMW catalog is included in this repository.
-- Vehicle signal regression checks cover notification-only gear fields,
-  both selector variants, a missing primary selector field, speed polling,
-  rejection of stale Park readings, unavailable-interface diagnostics and
-  shutdown while proxy setup is pending. A synthetic SDK is used.
-- Android application compiled against Android platform API 35, converted
-  to DEX for API 26+, packaged, zip-aligned and signed. Android's
-  `apksigner verify --verbose` confirms APK v2 and v3 signatures.
-- Fifteen car-side tests cover unknown/invalid vehicle readings, speed,
-  leaving Park, stale telemetry, private-address pairing, blocked starts,
-  HUD target geometry, release on motion, late frames after Stop,
-  renderer disconnect, wrong iDrive generation, incompatible phone versions,
-  layout switching, live still pictures and connection failure.
-- The real Java phone-side HTTP server was exercised by the real Node
-  car-side receiver: pairing, token authentication, exact decoded atlas
-  bytes, unchanged-screen heartbeats, route rejection and attempt limits passed.
-- Java frame storage tests cover empty storage, invalid dimensions,
-  sequence numbers, independent worker expiry, visibility and terminal clearing.
-- The car app source package builds with the upstream Store linker
-  against explicitly synthetic SDK stubs. Every app module resolves,
-  syntax checks pass, the Store source descriptor matches the app, and
-  vehicle attributes are read/subscribe only.
-- The distributable source package contains no BMW SDK, installed
-  firmware, VIN, vehicle key, signing key or generated app bundle.
+- 17 controller tests: fresh zero-speed/Park requirements; stale/invalid data;
+  late callbacks after Stop; native renderer loss; layout/aspect bounds;
+  authenticated static-screen liveness; hidden-content clearing; bounded
+  network recovery and cancellation; HUD/cluster selection; 30/60 profile
+  negotiation and native upload-budget arithmetic.
+- Four vehicle-signal groups: actual BMW field names/scaling, event-only
+  selector fields, both gearbox variants, speed polling, stale Park rejection,
+  unavailable interfaces and startup/shutdown races. No unsupported gear getter
+  was added. These are mocked SDK checks, not readings from the car.
+- App lifecycle tests: a hidden iDrive page can keep its mirror running while
+  the dashboard/controller capture is released; foreground-only mode stops;
+  a hidden-page movement update still stops output; native dashboard and
+  fallback navigation use the SDK's openState route.
+- Real Java FrameStore/PairingServer and HTTP -> Node -> native JPEG decoder
+  integration: **29.0 received fps for the 30-fps host producer** and
+  **57.5 received fps for the 60-fps host producer** in the final runs.
+  The producer uses synthetic JPEGs; this does not benchmark Android's
+  Bitmap encoder, BMW networking or the projector.
+- Real native musl-static decoder: 60 fixture frames in 291 ms on this host;
+  expected colors/full YUV atlas; malformed/truncated/wrong-dimension JPEG
+  rejection; stream fragmentation/oversize rejection; latest waiting frame;
+  hidden decode cancellation and terminal stop. The private app-data executable
+  fallback also passed with the packaged worker's execute bit removed.
+- Java storage/policy tests: immutable JPEGs, capture heartbeat separate from
+  pixel changes, worker expiry, hidden/stopped stores, portrait/landscape fit,
+  Bluetooth traffic pacing, fixed spatial detail during congestion and bounded
+  frame-rate recovery. Legacy conversion tests remain as geometry regressions;
+  production capture uses the Android-native JPEG path.
+- QR request tests: random one-use nonce, source-address-derived phone pairing,
+  expiry, origin/length/attempt bounds and Park checks. The actual car dashboard
+  QR raster decodes using the phone's ZXing/luma pipeline on the host.
+- Connect privilege-boundary tests: only the selected real local interface,
+  subnet, destination and TCP 8477; remote addresses/command injection refused;
+  socket-close and lease-expiry cleanup; unrelated firewall rules preserved.
+  nft commands are simulated. Real BMW firewall/systemd operation needs testing.
+- Display60 tests: idempotent fps override, exact original-file restoration,
+  preserving later edits even across reinstall, restart failure rollback,
+  symlink refusal and ten simulated restarts. No real renderer restart occurred.
+- Both optional Store tools build with upstream mgu-deploy's artifact builder.
+- The source-only car package links against made-up SDK stubs, passes Node
+  syntax checks, contains the logo/font/native worker/buildable worker source,
+  retains executable permissions and has valid native UI JSON/XML. No BMW SDK,
+  firmware, signing key or proprietary donor is in the package.
+- Android compiles against API 35, DEXes for API 26+, aligns and verifies its
+  v2/v3 signatures. Its update certificate matches 0.3.0. Branding, current
+  release notes, QR decoder and JPEG encoder are included. Camera permission
+  is requested only when the user opens the scanner.
+- The actual car drawing code generated Connection, Display, Updates and QR
+  previews under docs/images. Those are host previews, not car screenshots.
 
-## Needs hardware
+## Still requires the physical phone/car
 
-- Installing Android 0.3.0 over the existing APK, reading radio state,
-  automatic/manual video profiles and capture resizing on Max's phone.
-- Actual BMW Bluetooth media playback while mirroring, especially during
-  pairing/reconnection, changes of Wi-Fi band and sustained moving video.
-- Installing car 0.3.0, native video-layer acceptance, sustained incoming
-  and physically projected fps on the real hotspot/head unit.
-- Physical sharpness, full-screen edges, compact/full-screen placement,
-  brightness, latency and preservation of BMW speed and traffic signs.
-- On-device Stop behaviour, Park/movement interlock and normal HUD
-  restoration after stop/removal.
+Install/update acceptance; native helper execution on the BMW CPU/kernel;
+Android capture/rotation/visibility; camera focus; actual QR interface selection,
+firewall helper startup and lease cleanup; actual simultaneous Bluetooth or
+Android Auto video/audio/networking; background OAP lifecycle; display arbitration;
+CPU/thermal behaviour; native motion picture quality; projected/cluster fps;
+all four phone edges; and BMW speed, traffic signs, gauges and warning visibility.
 
-The user's car rejected 0.1.0 during SOME/IP interface generation.
-After 0.1.1, Max confirmed a working HUD test and brief phone mirroring.
-He reported poor image quality, approximately 1 fps, cropped phone content
-and intermittent `Phone frames stopped`. His photograph confirms that the
-app still had live stationary/Park permission when that error appeared.
-Max subsequently confirmed 0.2.0 works. He then reported severe lag and
-eventual stopping after connecting BMW Bluetooth; no exact stop reason
-or crash log was provided. That does not establish an app crash or prove
-RF interference. Version 0.3.0 addresses buffering, transport recovery
-and load adaptation while keeping BMW Bluetooth for audio. It still needs
-that combination checked on his phone/car. No MGU firmware emulator or
-Android device/emulator was available here. Retest stationary in Park,
-verify Bluetooth sound first, then start mirroring and record the band,
-received fps and exact last status if it stops.
+Earlier user reports: 0.2.0 displayed on the HUD; 0.3.0 audio worked but motion
+was pixelated/laggy at roughly 5–10 received fps. No physical result for 0.4.0
+has been reported. The new transport, helpers and UI must not be described as
+car-verified until that test occurs. Compact reserves room; coexistence is
+not certified by this host test.
 
-## Commands used
+Video remains stationary/Park-only. Shutdown/force-stop, locking, changed Wi-Fi,
+expired capture and the ten-minute session limit still end sharing.
 
-```sh
-node tests/test_car.js
-node tests/test_vehicle_signals.js
-node tests/test_package.js
-node tests/test_stream_decoder.js
-java -jar "$ECJ_JAR" -8 -proc:none -warn:none -d build/phone-tests \
-  android/app/src/main/java/uk/maxmods/hudmirror/FrameStore.java \
-  android/app/src/main/java/uk/maxmods/hudmirror/FrameEncoder.java \
-  android/app/src/main/java/uk/maxmods/hudmirror/TransportPolicy.java \
-  android/app/src/main/java/uk/maxmods/hudmirror/PairingServer.java \
-  tests/PhoneServerHarness.java
-java -cp build/phone-tests PhoneServerHarness store-test
-node tests/test_phone_integration.js
-python3 tools/build_android.py
-```
+## Android artifact
 
-See `README.md` for build prerequisites and the Store installation flow.
+- File: `downloads/Max_Mods_HUD_Mirror_Android_v0.4.0.apk`
+- Bytes: 324270
+- SHA-256: `2fb5503c090a37b337bbf94709cbe92153e7484ca9665eb0f0f347b2a3f3b22c`
+
+## Reproduce
+
+Run the Node checks in tests/test_car.js, test_vehicle_signals.js,
+test_app_lifecycle.js, test_stream_decoder.js, test_qr_pairing.js,
+test_connect.js, test_display60.js and test_package.js. Compile
+PhoneServerHarness.java plus FrameStore, FrameEncoder, PairingServer and
+TransportPolicy into build/phone-tests (ECJ or javac); run its store-test,
+then test_phone_integration.js for Sharp and again with argument smooth.
+QrScanHarness.java uses the vendored ZXing JAR and docs/images/pairing.png.
+These checks require no BMW SDK or car access. Android build instructions
+are in tools/build_android.py; native worker instructions are beside its source.

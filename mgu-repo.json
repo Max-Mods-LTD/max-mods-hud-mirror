@@ -1,5 +1,7 @@
 {
   "schema": 1,
+  "name": "MaxModsIdriveApps",
+  "title": "Max Mods iDrive Apps",
   "components": [
     {
       "id": "maxmods_hud_mirror",
@@ -7,15 +9,109 @@
       "path": "car",
       "build": "unit",
       "title": "Max Mods HUD Mirror",
-      "description": "Android phone screen on the windscreen HUD. Parked test prototype.",
-      "version": "0.3.0",
+      "description": "Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.",
+      "version": "0.4.0",
       "mguHmi": [
         "ID7"
       ],
       "requires": {
         "cluster-render": "0.3.7",
+        "mgu-render": "0.2.0",
         "mgu-deploy": "0.7.11"
       }
+    },
+    {
+      "id": "maxmods-display60",
+      "kind": "tool",
+      "version": "0.1.0",
+      "title": "Max Mods Display60",
+      "description": "Optional 60 fps renderer clock for HUD Mirror Smooth mode. Restarts the shared renderer. Uninstall restores earlier settings. Actual display speed needs a car test.",
+      "mguHmi": [
+        "ID7"
+      ],
+      "optional": true,
+      "uninstallable": true,
+      "requires": {
+        "cluster-render": "0.3.7",
+        "mgu-deploy": "0.7.11"
+      },
+      "files": [
+        {
+          "path": "profile.js",
+          "from": "profile.js",
+          "mode": "0644"
+        }
+      ],
+      "activate": [
+        "node",
+        "profile.js",
+        "enable"
+      ],
+      "deactivate": [
+        "node",
+        "profile.js",
+        "disable"
+      ],
+      "path": "tools/Display60",
+      "build": "unit"
+    },
+    {
+      "id": "maxmods-connect",
+      "kind": "tool",
+      "version": "0.1.0",
+      "title": "Max Mods Connect",
+      "description": "Optional QR connection helper. Opens only pairing TCP port 8477 on the selected car interface for its local subnet, while a QR is shown, for up to two minutes.",
+      "mguHmi": [
+        "ID7"
+      ],
+      "optional": true,
+      "uninstallable": true,
+      "requires": {
+        "mgu-deploy": "0.7.11"
+      },
+      "files": [
+        {
+          "path": "bridge.js",
+          "from": "bridge.js",
+          "mode": "0644"
+        },
+        {
+          "path": "run.sh",
+          "from": "run.sh",
+          "mode": "0755"
+        }
+      ],
+      "units": [
+        {
+          "name": "maxmods-connect.socket",
+          "from": "maxmods-connect.socket"
+        },
+        {
+          "name": "maxmods-connect.service",
+          "from": "maxmods-connect.service"
+        }
+      ],
+      "enable": [
+        {
+          "unit": "maxmods-connect.socket",
+          "target": "sockets.target"
+        }
+      ],
+      "recmgr": [
+        "maxmods-connect"
+      ],
+      "activate": [
+        "node",
+        "bridge.js",
+        "activate"
+      ],
+      "deactivate": [
+        "node",
+        "bridge.js",
+        "deactivate"
+      ],
+      "path": "tools/Connect",
+      "build": "unit"
     }
   ]
 }

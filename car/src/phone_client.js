@@ -51,13 +51,15 @@ class PhoneClient {
     }
     pair(text) {
         const p = parsePairing(text);
-        return this.request(p.host, '/v2/pair', null, p.pin, 1024).then((r) => {
-            if (r.status === 404) throw new Error('Update the phone app to version 0.3.0');
-            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.3.0');
+        return this.request(p.host, '/v3/pair', null, p.pin, 1024).then((r) => {
+            if (r.status === 404) throw new Error('Update the phone app to version 0.4.0');
+            if (r.status !== 200) throw new Error(r.status === 429 ? 'Too many pairing attempts; restart sharing on the phone' : 'Pairing refused: check the code and phone app version 0.4.0');
             let data; try { data = JSON.parse(r.body.toString('utf8')); } catch (e) { throw new Error('Invalid pairing reply'); }
-            if (!/^[a-f0-9]{32}$/.test(data.token || '') || data.protocol !== 2 || data.width !== WIDTH || data.height !== HEIGHT ||
-                data.fps !== 30 || data.format !== 'yuv420-atlas-deflate') throw new Error('Update both HUD Mirror apps to version 0.3.0');
-            return { host: p.host, token: data.token };
+            if (!/^[a-f0-9]{32}$/.test(data.token || '') || data.protocol !== 3 ||
+                !((data.width === 768 && data.height === 432 && data.fps === 30) ||
+                  (data.width === 576 && data.height === 324 && data.fps === 60)) ||
+                data.format !== 'jpeg') throw new Error('Update both HUD Mirror apps to version 0.4.0');
+            return { host: p.host, token: data.token, width: data.width, height: data.height, fps: data.fps };
         });
     }
     stream(pairing, events) {
@@ -68,13 +70,13 @@ class PhoneClient {
             failed = true; decoder.close(); this.decoders.delete(decoder); this.requests.delete(req);
             if (req) req.destroy(); events.error(e);
         };
-        const decoder = new StreamDecoder({ frame: events.frame, state: events.state, error: fail });
+        const decoder = new StreamDecoder({ frame: events.frame, state: events.state, error: fail }, pairing);
         const networkFail = (e) => { e.retryable = true; fail(e); };
         this.decoders.add(decoder);
-        req = http.request({ host: pairing.host, port: PORT, path: '/v2/stream?after=0', method: 'GET', agent: false,
+        req = http.request({ host: pairing.host, port: PORT, path: '/v3/stream?after=0', method: 'GET', agent: false,
             headers: { Authorization: 'Bearer ' + pairing.token, 'Cache-Control': 'no-store', Connection: 'close' } }, (res) => {
             if (res.statusCode !== 200) { fail(new Error(res.statusCode === 403 ? 'Phone session ended; pair again' : 'Phone stopped sharing; start sharing again')); return; }
-            if (res.headers['content-type'] !== 'application/x-maxmods-hud-stream' || res.headers['x-mirror-protocol'] !== '2') {
+            if (res.headers['content-type'] !== 'application/x-maxmods-hud-stream' || res.headers['x-mirror-protocol'] !== '3') {
                 fail(new Error('Invalid phone stream version')); return;
             }
             res.on('data', (chunk) => decoder.push(chunk));

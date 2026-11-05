@@ -1,0 +1,14 @@
+{
+  "id": "maxmods-display60",
+  "kind": "tool",
+  "version": "0.1.0",
+  "title": "Max Mods Display60",
+  "description": "Optional 60 fps renderer clock for HUD Mirror Smooth mode. Restarts the shared renderer. Uninstall restores earlier settings. Actual display speed needs a car test.",
+  "mguHmi": ["ID7"],
+  "optional": true,
+  "uninstallable": true,
+  "requires": {"cluster-render": "0.3.7", "mgu-deploy": "0.7.11"},
+  "files": [{"path": "profile.js", "from": "profile.js", "mode": "0644"}],
+  "activate": ["node", "profile.js", "enable"],
+  "deactivate": ["node", "profile.js", "disable"]
+}

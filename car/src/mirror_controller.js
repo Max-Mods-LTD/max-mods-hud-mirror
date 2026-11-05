@@ -4,11 +4,12 @@ const EventEmitter = require('events');
 const { ClusterRender } = require('./cluster_render_client.js');
 const { PhoneClient, WIDTH, HEIGHT, BYTES } = require('./phone_client.js');
 
-function hudRect(mode, width, height) {
+function hudRect(mode, width, height, sourceWidth, sourceHeight) {
+    sourceWidth = sourceWidth || WIDTH; sourceHeight = sourceHeight || HEIGHT;
     const area = mode === 'full' ? { x: 0, y: 0, w: width, h: height } :
         { x: width * 0.05, y: height * 0.02, w: width * 0.9, h: height * 0.7 };
-    const scale = Math.min(area.w / WIDTH, area.h / HEIGHT);
-    const w = Math.round(WIDTH * scale), h = Math.round(HEIGHT * scale);
+    const scale = Math.min(area.w / sourceWidth, area.h / sourceHeight);
+    const w = Math.round(sourceWidth * scale), h = Math.round(sourceHeight * scale);
     return { x: Math.round(area.x + (area.w - w) / 2), y: Math.round(area.y + (area.h - h) / 2), w, h };
 }
 
@@ -38,6 +39,8 @@ class MirrorController extends EventEmitter {
         this.lastFrameAt = null; this.sessionAt = null; this.status = 'Stopped'; this.detail = ''; this.targetState = '';
         this.running = false; this.pairingBusy = false; this.dead = false;
         this.layout = o.layout === 'full' ? 'full' : 'compact';
+        this.target = o.target === 'map' ? 'map' : 'hud';
+        this.videoWidth = WIDTH; this.videoHeight = HEIGHT; this.videoFps = 30;
         this.targetWidth = WIDTH; this.targetHeight = HEIGHT;
         this.streamAt = null; this.lastContactAt = null; this.latestPixels = null;
         this.lastRenderAt = null; this.frameTimes = []; this.captureState = 'waiting';
@@ -45,11 +48,15 @@ class MirrorController extends EventEmitter {
         this.connectionGeneration = 0; this.retryCount = 0; this.retryTimer = null; this.healthySince = null;
     }
     note(text) { this.status = text; this.emit('change'); }
-    videoStatus(text) { this.note(this.targetState && this.targetState !== 'shown' ? 'HUD: ' + this.detail + '; ' + text : text); }
+    videoStatus(text) { this.note(this.targetState && this.targetState !== 'shown' ? 'Display: ' + this.detail + '; ' + text : text); }
     toggleLayout() {
         this.layout = this.layout === 'compact' ? 'full' : 'compact';
-        if (this.renderer && this.layer !== null) this.renderer.set(this.layer, hudRect(this.layout, this.targetWidth, this.targetHeight));
+        if (this.renderer && this.layer !== null) this.renderer.set(this.layer, hudRect(this.layout, this.targetWidth, this.targetHeight, this.videoWidth, this.videoHeight));
         this.emit('change');
+    }
+    toggleTarget() {
+        if (this.running) this.stop('Display changed. Select Start mirror.');
+        this.target = this.target === 'hud' ? 'map' : 'hud'; this.emit('change');
     }
     pair(text) {
         this.stop('Pairing phone');
@@ -68,6 +75,9 @@ class MirrorController extends EventEmitter {
         if (!this.guard.allowed()) { this.note(this.guard.reason()); return; }
         if (!test && !this.pairing) { this.note('Pair your phone first'); return; }
         this.running = true; this.sessionAt = this.clock();
+        this.videoWidth = test ? WIDTH : this.pairing.width || WIDTH;
+        this.videoHeight = test ? HEIGHT : this.pairing.height || HEIGHT;
+        this.videoFps = test ? 30 : this.pairing.fps || 30;
         const epoch = this.generation;
         const r = this.renderer = this.makeRenderer();
         this.note(test ? 'Checking HUD display' : 'Connecting to phone');
@@ -75,14 +85,14 @@ class MirrorController extends EventEmitter {
             if (!this.running || epoch !== this.generation) return;
             // A reconnect must never replay the last phone image automatically.
             if (this.layer !== null) { this.stop('Renderer reconnected. Press Start again.'); return; }
-            const match = /(?:^|,)hud:(\d+)x(\d+)(?:,|$)/.exec(r.targets || '');
-            if (r.backend !== 'id7' || !match) { this.stop('This prototype requires an iDrive 7 HUD renderer'); return; }
+            const match = new RegExp('(?:^|,)' + this.target + ':(\\d+)x(\\d+)(?:,|$)').exec(r.targets || '');
+            if (r.backend !== 'id7' || !match) { this.stop('Selected display is unavailable on this renderer'); return; }
             this.targetWidth = Number(match[1]); this.targetHeight = Number(match[2]);
-            const geometry = hudRect(this.layout, this.targetWidth, this.targetHeight);
-            const opts = Object.assign({ target: 'hud', klass: 'content', visible: false, exclusive: false,
+            const geometry = hudRect(this.layout, this.targetWidth, this.targetHeight, this.videoWidth, this.videoHeight);
+            const opts = Object.assign({ target: this.target, klass: 'content', visible: false, exclusive: false,
                 contend: false, guide_hold: false, opacity: 1 }, geometry);
             this.layer = test ? r.image(Object.assign(opts, { iw: WIDTH, ih: HEIGHT, sampling: 'bilinear' })) :
-                r.video(Object.assign(opts, { vw: WIDTH, vh: HEIGHT, fps: 30, level_bits: 0,
+                r.video(Object.assign(opts, { vw: this.videoWidth, vh: this.videoHeight, fps: this.videoFps, level_bits: 0,
                     dirty_threshold: 0, pan_blocks: true, stall_ms: 2500 }));
             if (test) {
                 if (!this.guard.allowed()) { this.stop(this.guard.reason()); return; }
@@ -93,7 +103,7 @@ class MirrorController extends EventEmitter {
             } else this.beginStream(epoch);
         });
         r.on('target', (name, state, holder, reason) => {
-            if (name !== 'hud' || epoch !== this.generation || !this.running) return;
+            if (name !== this.target || epoch !== this.generation || !this.running) return;
             this.targetState = state;
             this.detail = state + (reason ? ': ' + reason : '');
             this.note(state === 'shown' ? (test ? 'HUD test active (8 seconds)' : 'Mirroring phone to HUD') : 'HUD: ' + this.detail);
@@ -143,7 +153,7 @@ class MirrorController extends EventEmitter {
             frame: (pixels, id) => {
                 if (!current()) return;
                 if (this.captureState !== 'active') return;
-                if (pixels.length !== BYTES) { this.stop('Invalid phone video frame'); return; }
+                if (pixels.length !== this.videoWidth * this.videoHeight * 3 / 2) { this.stop('Invalid phone video frame'); return; }
                 const now = this.clock();
                 if (this.healthySince === null) this.healthySince = now;
                 this.latestPixels = pixels; this.latestFrameId = id;
@@ -188,6 +198,7 @@ class MirrorController extends EventEmitter {
             this.renderer.close(); this.renderer = null;
         }
         this.layer = null; this.lastFrameAt = null;
+        this.targetState = ''; this.detail = '';
         this.latestPixels = null; this.lastContactAt = null; this.streamAt = null;
         this.pictureWaitAt = null; this.lastRenderAt = null; this.frameTimes = []; this.lastStatusAt = null;
         this.captureState = 'waiting';

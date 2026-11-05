@@ -1,47 +1,28 @@
-MAX MODS HUD MIRROR — CAR 0.3.0 / ANDROID 0.3.0
+MAX MODS iDrive Apps — HUD Mirror 0.4.0
 
-This is an experimental windscreen HUD mirroring app for your iDrive 7 M4.
-Max confirmed the earlier version works. This Bluetooth compatibility
-update still needs a car test. Up to 30 fps is the target; video detail or
-fps can adapt when the connection is congested.
+1. Car Store > Settings > Check now. Install Max Mods HUD Mirror 0.4.0.
+2. Install downloads/Max_Mods_HUD_Mirror_Android_v0.4.0.apk over the old phone app.
+3. Install Max Mods Connect in the car Store for QR pairing.
+4. Install optional Max Mods Display60 if you want the 60 fps renderer clock.
+5. Park in P. Keep your working Bluetooth/Android Auto sound connection.
+6. Connect the phone to BMW Wi-Fi. Open the phone app > Start sharing > Allow.
+7. Car app > Pair with QR. Phone app > Scan car QR. Then Start mirror in the car.
+8. Car app > Display: choose HUD / instrument cluster and Compact / Full screen.
+   Keep mirroring on other pages: On lets you leave this iDrive page.
+9. Phone app > Display > Choose video quality: Sharp 30 or Smooth 60 fps target.
+   Stop sharing before changing that profile, then start and pair again.
+10. Updates inside both apps explains the changes. Sessions last 10 minutes.
 
-The Android installer is in this repository's downloads folder:
-  downloads/Max_Mods_HUD_Mirror_Android_v0.3.0.apk
+Actual HUD/cluster fps, QR networking and simultaneous Android Auto need a car
+check. About 58 fps was received in the host Smooth test; that is not a measured
+projector rate. Native renderer motion packing also limits picture quality.
+Video remains Park-only. Stop and vehicle checks apply on all iDrive pages.
 
-The car folder holds the car app; android holds the phone app's source.
-In the car's Store, add this source and choose main:
+QR fails? Try a fresh code, confirm both devices share the same BMW network and
+Max Mods Connect is installed. Pair manually remains available.
+
+Current source, branch main:
   Max-Mods-LTD/max-mods-hud-mirror
 
-UPDATE BOTH APPS: Store > Settings > Check now, then install when the
-Available version says 0.3.0. Install the new phone APK over the old app.
-Stop sharing and pair again after the updates.
-
-First test:
-1. Add the source in the car's Store and install Max Mods HUD Mirror.
-2. Keep the car stationary in P and turn the HUD on.
-3. Open HUD Mirror in iDrive and press Test HUD (8 seconds).
-4. Only if the test pattern appears on the windscreen, continue.
-5. Install the Android APK and join the BMW Wi-Fi hotspot.
-6. For sound, connect BMW Bluetooth media, select it as the car's media
-   source and verify audio FIRST. Return to the car's HUD Mirror page.
-   Start sharing on the phone and approve Android's screen-share prompt.
-7. Enter the phone's address/code using Pair phone in the car app.
-8. Press Start mirror. Keep the car app's page open.
-9. Rotate the phone to landscape for the wide view. Check all four edges.
-10. HUD size toggles Compact / Full screen. Compact is the default.
-    Check BMW's speed and sign remain visible; this is not yet verified.
-
-If Bluetooth causes lag: set Video mode to Bluetooth priority on the
-phone. It shows the Wi-Fi band and Bluetooth output availability. Auto
-also adapts when a Bluetooth output shares 2.4 GHz or an unknown band.
-Keep wireless Android Auto disconnected for this test if pairing starts it.
-
-Scroll down to What's new. Use Previous change / Next change to read the
-release notes with the touchscreen or iDrive controller.
-
-Stop mirror on the car and Stop sharing on the phone when finished.
-The mirror carries video, targets up to 30 frames/second, and leaves sound
-to BMW Bluetooth media. It requires fresh live speed and Park readings and stops
-when those readings are unsafe, unavailable or stale.
-
-See README.md for full instructions and troubleshooting.
+Brand/source contents: MaxModsIdriveApps. Renaming the GitHub URL itself is still
+a separate account-settings step. Keep the existing source for this update.

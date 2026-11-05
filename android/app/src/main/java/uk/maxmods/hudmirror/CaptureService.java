@@ -22,6 +22,7 @@ public final class CaptureService extends Service {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final FrameStore frames = new FrameStore();
     private final TransportPolicy transport = new TransportPolicy();
+    private final JpegEncoder encoder = new JpegEncoder();
     private HandlerThread worker;
     private volatile MediaProjection projection;
     private volatile VirtualDisplay display;
@@ -87,6 +88,8 @@ public final class CaptureService extends Service {
             if (Build.VERSION.SDK_INT >= 29) startForeground(100, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
             else startForeground(100, notification);
             bindAddress = intent.getStringExtra("address");
+            String profile = getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoProfile", "sharp");
+            frames.configure(profile); transport.setProfile(profile);
             RadioStatus radio = RadioStatus.read(this);
             transport.setMode(getSharedPreferences("hud_mirror", MODE_PRIVATE).getString("videoMode", TransportPolicy.AUTO));
             transport.radio(radio.bluetooth, radio.frequency);
@@ -143,7 +146,7 @@ public final class CaptureService extends Service {
     }
     private int[] captureSize(int width, int height) {
         appliedPercent = transport.capturePercent();
-        return FrameEncoder.fit(width, height, FrameStore.WIDTH * appliedPercent / 100, FrameStore.HEIGHT * appliedPercent / 100);
+        return FrameEncoder.fit(width, height, frames.width(), frames.height());
     }
     private ImageReader newReader(int width, int height) {
         ImageReader next = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3);
@@ -179,9 +182,10 @@ public final class CaptureService extends Service {
             Image.Plane plane = image.getPlanes()[0];
             ByteBuffer buffer = plane.getBuffer();
             int pixel = plane.getPixelStride(), row = plane.getRowStride();
-            byte[] atlas = FrameEncoder.encode(buffer, image.getWidth(), image.getHeight(), row, pixel);
+            byte[] jpeg = encoder.encode(buffer, image.getWidth(), image.getHeight(), row, pixel,
+                    frames.width(), frames.height(), transport.jpegQuality());
             synchronized (this) {
-                if (active && !cleaning) { frames.publish(atlas); lastFrameNs = now; }
+                if (active && !cleaning) { frames.publishJpeg(jpeg); lastFrameNs = now; }
             }
         } catch (final Exception e) { main.post(new Runnable() { public void run() { finish("Capture stopped: " + e.getMessage()); } }); }
         finally { if (image != null) image.close(); }
@@ -198,6 +202,7 @@ public final class CaptureService extends Service {
         if (display != null) { display.release(); display = null; }
         if (reader != null) { reader.close(); reader = null; }
         if (projection != null) { MediaProjection p = projection; projection = null; p.stop(); }
+        if (captureHandler != null) captureHandler.post(new Runnable() { public void run() { encoder.close(); } });
         if (worker != null) { worker.quitSafely(); worker = null; }
         stopForeground(STOP_FOREGROUND_REMOVE);
     }

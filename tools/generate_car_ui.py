@@ -39,7 +39,10 @@ rows = [
     (31, 'button', 'mirrorPair', 'Pair phone'),
     (32, 'button', 'mirrorStart', 'Start mirror'),
     (33, 'button', 'mirrorStop', 'Stop mirror'),
-    (34, 'button', 'mirrorLayout', 'HUD size: Compact (space below for BMW)'),
+    (34, 'button', 'mirrorLayout', 'Picture size: Compact'),
+    (35, 'button', 'mirrorTarget', 'Display: Head-up display'),
+    (36, 'button', 'mirrorBackground', 'Keep mirroring on other pages: On'),
+    (37, 'button', 'mirrorQr', 'Pair with QR'),
     (40, 'label', 'mirrorWhatsNew', "What's new in " + VERSION + ' (1/' + str(len(release_lines)) + ')'),
     (41, 'label', 'mirrorReleaseLine1', release_lines[0][0]),
     (42, 'label', 'mirrorReleaseLine2', release_lines[0][1] if len(release_lines[0]) > 1 else ''),
@@ -61,11 +64,21 @@ for ident, kind, name, label in rows:
     if kind != 'title':
         widget = 'LT_Button_1Row' if kind == 'button' else 'LT_Label_1Row'
         xml.append(f'      <component id="{ident}" type="{kind}" widget="{widget}"><property id="2" value="1"/><property id="3" value="{focus}"/></component>')
-xml += ['    </layoutGroup>', '  </container>', '</application>']
+xml += ['    </layoutGroup>', '  </container>',
+    '  <container id="2" type="state" widget="LT_State_A4A_WelcomeApp">',
+    '    <layoutGroup id="300" name="Titlebar"><component id="110" type="title"><property id="2" value="1"/></component></layoutGroup>',
+    '    <layoutGroup id="301" name="List"><property id="3" value="1"/><component id="111" type="button" widget="LT_Button_1Row"><property id="2" value="1"/><property id="3" value="3"/></component></layoutGroup>',
+    '  </container>', '</application>']
 ui = TREE / 'rhmiData' / 'uiDescriptions' / 'ID7'
 ui.mkdir(parents=True, exist_ok=True)
 (ui / 'application.xml').write_text('\n'.join(xml) + '\n')
-write(ui / 'uiDescription.json', {'schemaVersion': '1.3.0', 'containers': {'1': {'type': 'state', 'name': 'ST_MaxModsHudMirror', 'components': components}}})
+write(ui / 'uiDescription.json', {'schemaVersion': '1.3.0', 'containers': {
+    '1': {'type': 'state', 'name': 'ST_MaxModsHudMirror', 'components': components},
+    '2': {'type': 'state', 'name': 'ST_MaxModsDashboard', 'components': {
+        '110': {'type': 'title', 'name': 'dashboardTitle', 'properties': {'Visible': {'value': 1, 'type': 'UInt'}}, 'rows': [{'Text': {'value': 'Max Mods HUD Mirror', 'type': 'Text'}}]},
+        '111': {'type': 'button', 'name': 'mirrorStandard', 'properties': {'Visible': {'value': 1, 'type': 'UInt'}, 'Focusable': {'value': 3, 'type': 'UInt'}}, 'rows': [{'Text': {'value': 'Open standard controls', 'type': 'Text'}}]}
+    }}
+}})
 write(TREE / 'rhmiData' / 'application.json', {'schemaVersion': '1.3.0', 'application': {
     'uuid': uid('application'), 'type': 'OnlineApp', 'name': APP, 'vendor': 'Max Mods', 'version': VERSION,
     'defaultLanguage': 'en_GB', 'stringBundleUuid': uid('strings'), 'resourceBundleUuid': uid('resources'),
@@ -79,14 +92,14 @@ write(TREE / 'rhmiData' / 'application.json', {'schemaVersion': '1.3.0', 'applic
 languages = ['ar_AE','cs_CZ','da_DK','de_DE','el_GR','en_GB','en_US','es_ES','fi_FI','fr_FR','he_IL','hr_HR','hu_HU','id_ID','it_IT','ja_JP','ko_KR','nb_NO','nl_NL','no_NO','pl_PL','pt_BR','pt_PT','ro_RO','ru_RU','sk_SK','sl_SI','sv_SE','th_TH','tr_TR','uk_UA','vi_VN','zh_CN','zh_TW']
 for lang in languages:
     write(TREE / 'rhmiData' / 'variantGroups' / 'Common' / 'texts' / (lang + '.json'), {'SID_HUD_TITLE': 'Max Mods HUD Mirror'})
-write(TREE / 'package.json', {'name': APP, 'version': VERSION, 'description': 'Experimental Android screen mirroring to the iDrive 7 windscreen HUD while stationary in Park',
+write(TREE / 'package.json', {'name': APP, 'version': VERSION, 'description': 'Android screen mirroring to the iDrive 7 HUD or instrument cluster while stationary in Park',
     'main': 'javascript/runner.js', 'author': 'Max Mods', 'license': 'GPL-3.0-or-later', 'mguLocalOnly': True,
     'mguHmi': ['ID7'], 'mguInternet': True,
     'engines': {'node': '>=8.7.0'}, 'dependencies': {'oap-sdk': '24.10.2'},
-    'oapAppSettings': {'maxDiskUsage': 10485760, 'cpuLimit': 30, 'memoryThresholdKB': 102400, 'priority': 'PRIO_MEDIUM',
+    'oapAppSettings': {'maxDiskUsage': 10485760, 'cpuLimit': 60, 'memoryThresholdKB': 196608, 'priority': 'PRIO_MEDIUM',
         'visibility': 'FOREGROUND', 'latencyClass': 'FOREGROUND', 'loggingId': 'MMHM', 'userLoginRequired': False,
         'backgroundPriority': 150, 'someipManifest': 'manifest.json'},
-    'files': ['config','rhmiData','package.json','npm-shrinkwrap.json','permissions.json','javascript','manifest.json','LICENSE','THIRD_PARTY_NOTICES.md']})
+    'files': ['config','rhmiData','package.json','npm-shrinkwrap.json','permissions.json','javascript','manifest.json','assets','LICENSE','THIRD_PARTY_NOTICES.md']})
 write(TREE / 'npm-shrinkwrap.json', {'name': APP, 'version': VERSION, 'lockfileVersion': 1, 'requires': True, 'dependencies': {}})
 write(TREE / 'config' / 'base.json', {'rhmiLoadingEnabled': True, 'entryPointLoadingEnabled': True})
 
@@ -113,21 +126,28 @@ proxies.update({
 write(TREE / 'manifest.json', {'proxies': proxies, 'services': {'de.bmw.infotainment.telematic.oap.AppStatus': {'instances': ['${userId}']}}})
 # The Store completes framework ACLs from manifest.json at install time.
 write(TREE / 'permissions.json', {x: [] for x in ['masterAccessTable','mediatorAccessTable','ownerAccessTable','masterRegistrationTable','mediatorRegistrationTable','ownerRegistrationTable','domainRoleTable']})
-modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js']
+modules = ['app.js','speller.js','park_guard.js','vehicle_signals.js','phone_client.js','stream_decoder.js','mirror_controller.js','release_notes.js','cluster_render_client.js','jpeg_worker.js','qr_pairing.js','qrcode.js','dashboard.js','brand_canvas.js','mgu_render_client.js']
 write(CAR / 'mgu-app.json', {'schema': 1, 'id': APP, 'version': VERSION, 'tree': TREE.name, 'internet': True,
     'modules': ['src/' + x for x in modules], 'sdk': ['oap-sdk/src/core/OnlineApp.js','oap-sdk/src/logging/logging','oap-sdk/src/someip/someipBuilders']})
-write(ROOT / 'mgu-repo.json', {'schema': 1, 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
-    'description': 'Android phone screen on the windscreen HUD. Parked test prototype.', 'version': VERSION, 'mguHmi': ['ID7'],
-    'requires': {'cluster-render': '0.3.7','mgu-deploy': '0.7.11'}}]})
-image = Image.new('RGBA', (140, 140), (0,0,0,0))
+write(ROOT / 'mgu-repo.json', {'schema': 1, 'name': 'MaxModsIdriveApps', 'title': 'Max Mods iDrive Apps', 'components': [{'id': APP,'kind': 'app','path': 'car','build': 'unit', 'title': 'Max Mods HUD Mirror',
+    'description': 'Mirror your Android phone to the HUD or instrument cluster, with Max Mods controls and QR pairing.', 'version': VERSION, 'mguHmi': ['ID7'],
+    'requires': {'cluster-render': '0.3.7','mgu-render': '0.2.0','mgu-deploy': '0.7.11'}},
+    dict(json.loads((ROOT / 'tools/Display60/component.json').read_text()), path='tools/Display60', build='unit'),
+    dict(json.loads((ROOT / 'tools/Connect/component.json').read_text()), path='tools/Connect', build='unit')]})
+image = Image.new('RGBA', (140, 140), (12,13,16,255))
+logo = Image.open(ROOT / 'assets' / 'max-mods-logo.png').convert('RGBA')
+logo.thumbnail((130,50), Image.Resampling.LANCZOS)
+image.alpha_composite(logo, ((140-logo.width)//2, 45))
 draw = ImageDraw.Draw(image)
-draw.rounded_rectangle((10,12,130,128), radius=24, fill=(15,27,33,255), outline=(102,220,167,255), width=4)
-draw.rounded_rectangle((28,34,112,88), radius=7, outline=(255,255,255,255), width=4)
-draw.line((49,107,91,107), fill=(102,220,167,255), width=4)
-draw.line((70,91,70,107), fill=(102,220,167,255), width=4)
-draw.line((50,61,64,75,91,46), fill=(102,220,167,255), width=5)
+font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 12)
+draw.text((34,88), 'HUD Mirror', font=font, fill='white')
 icon = TREE / 'rhmiData' / 'variantGroups' / 'Common' / 'images' / 'hud_mirror.png'
 icon.parent.mkdir(parents=True, exist_ok=True); image.save(icon)
+phone_icon = ROOT / 'android/app/src/main/res/drawable/maxmods_icon.png'
+phone_icon.parent.mkdir(parents=True, exist_ok=True); shutil.copy(icon, phone_icon)
+shutil.copytree(CAR / 'assets', TREE / 'assets', dirs_exist_ok=True)
+shutil.copy(ROOT / 'assets' / 'DejaVu-LICENSE.txt', TREE / 'assets' / 'DejaVu-LICENSE.txt')
+shutil.copy(ROOT / 'release_notes.json', ROOT / 'android/app/src/main/assets/release_notes.json')
 shutil.copy(ROOT / 'LICENSE', TREE / 'LICENSE')
 if (ROOT / 'THIRD_PARTY_NOTICES.md').exists(): shutil.copy(ROOT / 'THIRD_PARTY_NOTICES.md', TREE / 'THIRD_PARTY_NOTICES.md')
 print('Generated', TREE)

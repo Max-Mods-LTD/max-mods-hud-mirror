@@ -590,7 +590,7 @@ function packSource(appDir, outFile) {
         .concat(filesBelow(path.join(appDir, m.tree)).filter((f) => BUILT.indexOf(f) < 0).map((f) => `${m.tree}/${f}`));
     const sorted = [...new Set(names)].sort();
     fs.writeFileSync(outFile, tgz(sorted.map((name) =>
-        ({ name, data: fs.readFileSync(path.join(appDir, name)), mode: 0o644 })), MTIME));
+        ({ name, data: fs.readFileSync(path.join(appDir, name)), mode: (fs.statSync(path.join(appDir, name)).mode & 0o111) ? 0o755 : 0o644 })), MTIME));
     return sorted;
 }
 
@@ -608,6 +608,7 @@ function copyTree(from, to) {
             return next;
         }, to);
         fs.writeFileSync(dest, fs.readFileSync(path.join(from, rel)));
+        fs.chmodSync(dest, (fs.statSync(path.join(from, rel)).mode & 0o111) ? 0o755 : 0o644);
     });
 }
 
@@ -838,7 +839,7 @@ function preparePackage(pkgDir, outFile, opts) {
     const certification = completeCertification(pkgDir);
     stampPackage(pkgDir);
     fs.writeFileSync(outFile, tgz(filesBelow(pkgDir).map((name) =>
-        ({ name, data: fs.readFileSync(path.join(pkgDir, name)), mode: 0o644 })), MTIME));
+        ({ name, data: fs.readFileSync(path.join(pkgDir, name)), mode: (fs.statSync(path.join(pkgDir, name)).mode & 0o111) ? 0o755 : 0o644 })), MTIME));
     return { file: outFile, sdk, shrinkwrap, permissions, certification };
 }
 

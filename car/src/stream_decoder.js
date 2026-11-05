@@ -1,32 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
-const zlib = require('zlib');
+const { JpegWorker } = require('./jpeg_worker.js');
 const WIDTH = 768, HEIGHT = 432, BYTES = WIDTH * HEIGHT * 3 / 2;
-const MAX_WIRE_BYTES = BYTES + 4096, HEADER = 13;
-
-// Node 8 has no maxOutputLength option. Bound streaming inflation explicitly.
-function inflateFrame(payload) {
-    return new Promise((resolve, reject) => {
-        const inflater = zlib.createInflate({ chunkSize: 65536 });
-        const parts = []; let size = 0, done = false;
-        const fail = (e) => { if (!done) { done = true; inflater.destroy(); reject(e); } };
-        inflater.on('data', (part) => {
-            size += part.length;
-            if (size > BYTES) { fail(new Error('Phone frame exceeded the video limit')); return; }
-            parts.push(part);
-        });
-        inflater.on('error', fail);
-        inflater.on('end', () => {
-            if (done) return;
-            if (size !== BYTES) { fail(new Error('Invalid phone frame size')); return; }
-            done = true; resolve(Buffer.concat(parts, size));
-        });
-        inflater.end(payload);
-    });
-}
+const MAX_WIRE_BYTES = 600000, HEADER = 13;
 
 class StreamDecoder {
-    constructor(events) {
+    constructor(events, options) {
+        const o = options || {};
+        this.worker = new JpegWorker(o.width || WIDTH, o.height || HEIGHT);
+        this.decode = o.decode || ((payload) => this.worker.decode(payload));
         this.events = events; this.buffer = Buffer.alloc(0); this.closed = false;
         this.lastWireId = 0; this.pending = null; this.decoding = false; this.epoch = 0;
     }
@@ -62,12 +44,12 @@ class StreamDecoder {
     pump() {
         if (this.closed || this.decoding || !this.pending) return;
         const frame = this.pending; this.pending = null; this.decoding = true;
-        inflateFrame(frame.payload).then((pixels) => {
+        this.decode(frame.payload).then((pixels) => {
             this.decoding = false;
             if (!this.closed && frame.epoch === this.epoch) this.events.frame(pixels, frame.id);
             this.pump();
         }).catch((e) => { this.decoding = false; this.fail(e); });
     }
-    close() { this.closed = true; this.pending = null; this.buffer = Buffer.alloc(0); this.epoch++; }
+    close() { this.closed = true; this.pending = null; this.buffer = Buffer.alloc(0); this.epoch++; this.worker.close(); }
 }
-module.exports = { StreamDecoder, inflateFrame, WIDTH, HEIGHT, BYTES, MAX_WIRE_BYTES, HEADER };
+module.exports = { StreamDecoder, WIDTH, HEIGHT, BYTES, MAX_WIRE_BYTES, HEADER };

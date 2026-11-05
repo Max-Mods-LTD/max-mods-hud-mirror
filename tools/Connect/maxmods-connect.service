@@ -1,0 +1,11 @@
+[Unit]
+Description=Max Mods local QR pairing network lease
+Requires=maxmods-connect.socket
+After=local-fs.target maxmods-connect.socket
+[Service]
+User=root
+Group=tm_oap_app
+ExecStart=/var/opt/maxmods-connect/current/run.sh serve
+ExecStopPost=/var/opt/maxmods-connect/current/run.sh cleanup
+Restart=on-failure
+RestartSec=5

@@ -1,0 +1,17 @@
+{
+  "id":"maxmods-connect",
+  "kind":"tool",
+  "version":"0.1.0",
+  "title":"Max Mods Connect",
+  "description":"Optional QR connection helper. Opens only pairing TCP port 8477 on the selected car interface for its local subnet, while a QR is shown, for up to two minutes.",
+  "mguHmi":["ID7"],
+  "optional":true,
+  "uninstallable":true,
+  "requires":{"mgu-deploy":"0.7.11"},
+  "files":[{"path":"bridge.js","from":"bridge.js","mode":"0644"},{"path":"run.sh","from":"run.sh","mode":"0755"}],
+  "units":[{"name":"maxmods-connect.socket","from":"maxmods-connect.socket"},{"name":"maxmods-connect.service","from":"maxmods-connect.service"}],
+  "enable":[{"unit":"maxmods-connect.socket","target":"sockets.target"}],
+  "recmgr":["maxmods-connect"],
+  "activate":["node","bridge.js","activate"],
+  "deactivate":["node","bridge.js","deactivate"]
+}

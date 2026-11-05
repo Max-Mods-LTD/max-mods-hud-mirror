@@ -95,7 +95,7 @@ public final class PairingServer implements Closeable {
             }
             if (closed || System.nanoTime() - started > 10L * 60L * 1000000000L) { reply(socket, 410, "", null); return; }
             String peer = socket.getInetAddress().getHostAddress();
-            if (start[0].equals("POST") && start[1].equals("/v2/pair")) {
+            if (start[0].equals("POST") && start[1].equals("/v3/pair")) {
                 if (h.containsKey("transfer-encoding") || !"8".equals(h.get("content-length"))) { reply(socket, 400, "", null); return; }
                 byte[] b = new byte[8];
                 for (int n = 0; n < 8;) { int r = in.read(b, n, 8 - n); if (r < 0) throw new EOFException(); n += r; }
@@ -108,14 +108,14 @@ public final class PairingServer implements Closeable {
                     if (!equal(pin, new String(b, StandardCharsets.US_ASCII))) { reply(socket, 403, "", null); return; }
                     pairedPeer = peer;
                 }
-                byte[] json = ("{\"token\":\"" + token + "\",\"protocol\":2,\"width\":" + FrameStore.WIDTH +
-                        ",\"height\":" + FrameStore.HEIGHT + ",\"fps\":" + FrameStore.FPS + ",\"format\":\"yuv420-atlas-deflate\"}").getBytes(StandardCharsets.US_ASCII);
+                byte[] json = ("{\"token\":\"" + token + "\",\"protocol\":3,\"width\":" + frames.width() +
+                        ",\"height\":" + frames.height() + ",\"fps\":" + frames.fps() + ",\"format\":\"jpeg\"}").getBytes(StandardCharsets.US_ASCII);
                 reply(socket, 200, "application/json", json); return;
             }
             synchronized (this) {
                 if (!peer.equals(pairedPeer) || !equal("Bearer " + token, h.get("authorization"))) { reply(socket, 403, "", null); return; }
             }
-            if (!start[0].equals("GET") || !start[1].matches("/v2/stream\\?after=[0-9]{1,15}")) { reply(socket, 404, "", null); return; }
+            if (!start[0].equals("GET") || !start[1].matches("/v3/stream\\?after=[0-9]{1,15}")) { reply(socket, 404, "", null); return; }
             long after = Long.parseLong(start[1].substring(start[1].indexOf('=') + 1));
             stream(socket, after);
         } catch (IOException | RuntimeException ignored) {
@@ -131,7 +131,7 @@ public final class PairingServer implements Closeable {
         }
         try {
             OutputStream out = new BufferedOutputStream(socket.getOutputStream(), 65536);
-            out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/x-maxmods-hud-stream\r\nX-Mirror-Protocol: 2\r\n" +
+            out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/x-maxmods-hud-stream\r\nX-Mirror-Protocol: 3\r\n" +
                     "Cache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
             out.flush();
             long lastWrite = 0, nextPicture = 0; int lastState = -1;
@@ -159,7 +159,7 @@ public final class PairingServer implements Closeable {
             }
         } finally { synchronized (this) { if (streamSocket == socket) streamSocket = null; } }
     }
-    /** u32 payload length, u8 kind, u64 frame id, then one bounded zlib frame.
+    /** u32 payload length, u8 kind, u64 frame id, then one bounded JPEG frame.
      * No queue: a slow socket gets the latest picture when it catches up. */
     private void writeRecord(final Socket socket, OutputStream out, int kind, long id, byte[] payload) throws IOException {
         int length = payload == null ? 0 : payload.length;

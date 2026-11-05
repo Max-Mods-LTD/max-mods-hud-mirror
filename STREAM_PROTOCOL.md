@@ -1,77 +1,78 @@
-# Phone stream protocol 2
+# Phone stream protocol 3
 
-The companion listens on its private Wi-Fi IPv4 address, TCP 8476.
-Only the paired peer and its ephemeral bearer token may open the stream.
-The session ends after ten minutes. This is authenticated local HTTP;
-it does not encrypt screenshots. No screenshot or token is persisted.
+The phone binds its selected private Wi-Fi IPv4 address on TCP 8476.
+`POST /v3/pair` accepts the eight-digit PIN and returns an ephemeral 128-bit
+bearer token plus `protocol:3`, `format:"jpeg"` and one of these exact profiles:
 
-`POST /v2/pair` accepts the displayed eight-digit code and returns the
-session token, protocol 2, width 768, height 432, target fps 30 and format
-`yuv420-atlas-deflate`. Car and phone 0.3.0 use the same wire format.
-The negotiated fps is the maximum target, not a current measurement.
+| Profile | Width | Height | Maximum target fps |
+| --- | --- | --- | --- |
+| Sharp | 768 | 432 | 30 |
+| Smooth | 576 | 324 | 60 |
 
-`GET /v2/stream?after=<last-frame-id>` uses `Authorization: Bearer <token>`.
-The response is one continuous `application/x-maxmods-hud-stream` body,
-with `X-Mirror-Protocol: 2`. Each record has a 13-byte header:
+Unknown dimensions, formats or combinations are refused. Both apps must be
+0.4.0. The negotiated fps is a maximum target, not a measured display rate.
+
+`GET /v3/stream?after=<id>` requires `Authorization: Bearer <token>`. The
+response is a continuous `application/x-maxmods-hud-stream` body with
+`X-Mirror-Protocol: 3`. Each record has a 13-byte header:
 
 | Offset | Type | Meaning |
 | --- | --- | --- |
-| 0 | uint32 LE | Compressed payload length |
-| 4 | uint8 | Record kind |
-| 5 | uint64 LE | Frame sequence, within JavaScript's safe integer range |
-| 13 | bytes | Payload, for kind 1 only |
+| 0 | uint32 LE | JPEG payload length, at most 600000 bytes |
+| 4 | uint8 | Kind |
+| 5 | uint64 LE | Capture sequence within JavaScript's safe integer range |
+| 13 | bytes | JPEG for kind 1; no payload for other kinds |
 
 | Kind | Meaning |
 | --- | --- |
-| 1 | New image: one zlib-compressed native YUV 4:2:0 atlas |
-| 2 | Capture active; no new picture in this record |
-| 3 | Capture active, waiting for its first/new picture |
-| 4 | Shared app hidden; erase output until a new picture arrives |
-| 5 | Capture stopped, stalled or session expired; close stream |
+| 1 | New complete JPEG picture |
+| 2 | Authenticated capture-alive heartbeat; does not create a new image |
+| 3 | Capture live, waiting for first/new image |
+| 4 | Captured app hidden; discard cached/pending pictures |
+| 5 | Capture stopped/stalled/session ended; terminal, do not reconnect |
 
-The atlas is 768 x 432 Y bytes, followed by 216 rows with U on the left
-and V on the right, 384 bytes each. Colour is full-range BT.601 to match
-the renderer. Payloads are capped at raw atlas bytes + 4096; inflation
-is streamed and capped at exactly 497,664 output bytes, including on
-Node 8. The receiver retains at most one decode and one latest pending
-frame. Intermediate frames are discarded when it cannot keep up.
+Frame IDs increase. Pictures fit the entire phone capture in the fixed canvas.
+The phone keeps only the newest JPEG and paces writes; a slow client does not
+build a video backlog. The car allows one native decode in flight and one latest
+waiting frame. Hidden/closed epochs discard late decoder completions.
 
-The capture worker checks the projection, virtual display and phone lock
-state every 250 ms. Only that worker renews the 2.5-second liveness
-deadline. HTTP requests and repeated pixels do not renew it. MediaProjection
-stop/visibility callbacks end or hide output. A live unchanged screen
-keeps its original capture time and sequence number.
+The unprivileged native worker accepts a uint32-LE JPEG length and JPEG on stdin,
+then returns uint32-LE atlas length and full-range BT.601 YUV420 atlas on stdout.
+The atlas holds Y at full width/height, followed by half-resolution U and V
+side-by-side (each half the full width). The worker validates size before
+allocation/decode, caps address space at 96 MiB and has a client-side 2 s deadline.
+No screenshot file is used. Legacy Store archives without execute bits use a
+private executable copy in the SDK-provided app data folder, removed on close.
 
-The server sends the newest available picture when its pacing permits, or a state heartbeat
-every 250 ms. Socket writes have a three-second deadline. The car uses a
-3.5-second connection deadline and its existing fresh zero-speed/Park
-guard. Active capture records may refresh an unchanged frame in the native
-video renderer, whose stall deadline is separate. Paused/stopped/dead
-connections never refresh a cached picture.
+Capture liveness is renewed only by the capture worker after projection/display
+checks, not by HTTP requests or pixel changes. Hidden content, locking, expired
+liveness, Stop and the 10-minute session end clear the frame store. Brief network
+failures may reconnect up to three times; a new live frame is required to show
+anything. Park/stale-signal checks remain independent of network recovery.
 
-Version 0.3.0 requests a 16 KiB socket send buffer so a slowed radio does
-not hide a large playback queue below the Java layer. Auto picture traffic
-is paced at 8 MiB/s normally or 2 MiB/s when an available Bluetooth output
-shares 2.4 GHz/an unknown band; Bluetooth priority forces the latter.
-Quality priority removes that artificial byte cap and preserves full
-capture detail. Actual writes still have the same bounded deadline.
+## QR pairing
 
-Write duration and picture size drive capture scaling (100/75/50/38/25
-percent) before fps reduction (30 down to 10). The planes are converted
-at the smaller capture size before expansion into the unchanged canvas,
-reducing CPU work and compressed traffic without cropping phone edges.
-Sparse/quiet screens may refine to full detail instead of being treated
-as a continuous 30-fps load. These are traffic policies, not an RF fix or
-a guarantee of a particular projector rate.
+The car temporarily listens on one local private address, TCP 8477, when Pair
+with QR is selected. The QR contains
+`maxmods://pair?v=1&host=<local-ip>&port=8477&key=<48-hex-nonce>`.
+It expires after two minutes. The phone scans locally with ZXing and sends the
+eight-digit phone PIN to `POST /pair`, header `X-MaxMods-Pair: <nonce>`, using
+the same Wi-Fi network as capture. Redirects/public addresses are refused.
 
-The car may retry a transport error three times with 250/750/1500 ms
-backoff, discarding cached pictures and all callbacks from an old
-connection. Only a new live frame may show the layer again. Explicit
-capture/protocol failures do not retry. Stop, vehicle permission loss,
-renderer loss and the original session deadline cancel recovery.
+The car derives the phone address from the incoming socket, checks the nonce,
+request length/origin, attempt budget, deadline and Park state, claims the nonce
+once, and completes the existing outgoing phone pairing. It never trusts a
+phone-supplied address. Camera frames and the nonce are never logged or uploaded.
 
-The native video layer targets 30 fps and uses the renderer's existing
-motion packing when needed, refining to the exact atlas when the shared
-upload budget permits. Its worst packed motion traffic at 30 fps is
-4,976,640 bytes/s, below the default 5500 KiB/s renderer cap. Other layers,
-Wi-Fi and hardware processing can still reduce the projected rate.
+The optional Max Mods Connect tool provides a Unix-socket privilege boundary at
+`/run/maxmods-connect/pair.sock`, group `tm_oap_app`. Its only request is
+`{"op":"pair","host":"<car-local-ip>"}`. It validates the address against actual
+local interfaces, then temporarily permits TCP 8477 only to that address on
+that interface from its subnet. No arbitrary port/command/duration is accepted.
+The lease ends on client disconnect or after two minutes; cleanup removes only
+rules marked MaxModsQR. The bridge never receives a PIN, QR nonce or screenshot.
+Without the helper, direct QR can work where the existing car firewall permits
+it; manual pairing remains available.
+
+These protocols use authenticated local HTTP, without transport encryption.
+Use a trusted BMW network. Tokens, codes and pictures are memory-only.

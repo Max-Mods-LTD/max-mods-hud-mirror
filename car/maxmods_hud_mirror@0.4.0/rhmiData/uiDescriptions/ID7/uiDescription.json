@@ -1,0 +1,475 @@
+{
+  "schemaVersion": "1.3.0",
+  "containers": {
+    "1": {
+      "type": "state",
+      "name": "ST_MaxModsHudMirror",
+      "components": {
+        "10": {
+          "type": "title",
+          "name": "mirrorTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "SID_HUD_TITLE",
+                "type": "StringId"
+              }
+            }
+          ]
+        },
+        "20": {
+          "type": "label",
+          "name": "mirrorStatus",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Stopped",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "21": {
+          "type": "label",
+          "name": "mirrorPark",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Waiting for vehicle signals",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "22": {
+          "type": "label",
+          "name": "mirrorPhone",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Start sharing on your phone, then select Pair phone",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "23": {
+          "type": "label",
+          "name": "mirrorVersion",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Car 0.4.0 / phone 0.4.0",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "24": {
+          "type": "label",
+          "name": "mirrorAudio",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Sound: select BMW Bluetooth media before mirroring",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "30": {
+          "type": "button",
+          "name": "mirrorTest",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Test HUD (8 seconds)",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "31": {
+          "type": "button",
+          "name": "mirrorPair",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Pair phone",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "32": {
+          "type": "button",
+          "name": "mirrorStart",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Start mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "33": {
+          "type": "button",
+          "name": "mirrorStop",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Stop mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "34": {
+          "type": "button",
+          "name": "mirrorLayout",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Picture size: Compact",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "35": {
+          "type": "button",
+          "name": "mirrorTarget",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Display: Head-up display",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "36": {
+          "type": "button",
+          "name": "mirrorBackground",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Keep mirroring on other pages: On",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "37": {
+          "type": "button",
+          "name": "mirrorQr",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Pair with QR",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "40": {
+          "type": "label",
+          "name": "mirrorWhatsNew",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "What's new in 0.4.0 (1/9)",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "41": {
+          "type": "label",
+          "name": "mirrorReleaseLine1",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "New Max Mods dashboard, official logo and clearer",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "42": {
+          "type": "label",
+          "name": "mirrorReleaseLine2",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 0,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Connection, Display and Updates pages.",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "43": {
+          "type": "button",
+          "name": "mirrorReleasePrevious",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Previous change",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "44": {
+          "type": "button",
+          "name": "mirrorReleaseNext",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Next change",
+                "type": "Text"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "type": "state",
+      "name": "ST_MaxModsDashboard",
+      "components": {
+        "110": {
+          "type": "title",
+          "name": "dashboardTitle",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Max Mods HUD Mirror",
+                "type": "Text"
+              }
+            }
+          ]
+        },
+        "111": {
+          "type": "button",
+          "name": "mirrorStandard",
+          "properties": {
+            "Visible": {
+              "value": 1,
+              "type": "UInt"
+            },
+            "Focusable": {
+              "value": 3,
+              "type": "UInt"
+            }
+          },
+          "rows": [
+            {
+              "Text": {
+                "value": "Open standard controls",
+                "type": "Text"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

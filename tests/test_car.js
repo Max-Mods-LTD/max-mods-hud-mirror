@@ -122,7 +122,7 @@ const phoneFactory = () => ({ close() {}, stream() {} });
         c.pairing = { host: '10.0.0.1', token: '0'.repeat(32) }; c.start(false);
         r.emit('target', 'hud', 'parked', 'stock', 'parked behind stock');
         events.state('active'); events.frame(Buffer.alloc(BYTES), 1);
-        assert(/HUD: parked.*Receiving/.test(c.status), 'incoming frames must not hide a target-arbitration error');
+        assert(/Display: parked.*Receiving/.test(c.status), 'incoming frames must not hide a target-arbitration error');
         r.emit('target', 'hud', 'shown', '', '');
         now += 2000; refreshPark(); events.state('active'); assert(c.running);
         assert.strictEqual(r.frames.length, 2, 'a live still screen refreshes the video deadline without fabricating new frames');
@@ -173,6 +173,20 @@ const phoneFactory = () => ({ close() {}, stream() {} });
             if (i < 3) await new Promise((resolve) => setTimeout(resolve, [300,800,1550][i]));
         }
         assert(!c.running); assert.strictEqual(streams.length, 4); assert(r.closed); c.close();
+    });
+    await test('cluster selection uses its map target, keeps guards and requires Start after a target change', () => {
+        const r=new Renderer(),c=new MirrorController(guard(),{makeRenderer:()=>r,makePhone:phoneFactory});
+        c.toggleTarget();assert.strictEqual(c.target,'map');c.start(true);assert.strictEqual(r.images[0].target,'map');
+        assert.strictEqual(r.images[0].exclusive,false);assert.strictEqual(r.images[0].contend,false);
+        c.toggleTarget();assert(!c.running&&r.closed);assert.strictEqual(c.target,'hud');c.close();
+    });
+    await test('Smooth negotiates a bounded 60 fps canvas and preserves its full aspect in both sizes', async () => {
+        const p=new PhoneClient();p.request=()=>Promise.resolve({status:200,body:Buffer.from(JSON.stringify({token:'0'.repeat(32),protocol:3,width:576,height:324,fps:60,format:'jpeg'}))});
+        const paired=await p.pair('10.0.0.1/12345678');assert.strictEqual(paired.fps,60);p.close();
+        const r=new Renderer(),c=new MirrorController(guard(),{makeRenderer:()=>r,makePhone:phoneFactory});c.pairing=paired;c.start(false);
+        assert.strictEqual(r.videos[0].vw,576);assert.strictEqual(r.videos[0].vh,324);assert.strictEqual(r.videos[0].fps,60);
+        assert(576*324/2*60<5500*1024);assert(r.videos[0].y+r.videos[0].h<480*0.75);
+        c.toggleLayout();const rect=r.settings[r.settings.length-1];assert(rect.w<=800&&rect.h<=480&&Math.abs(rect.w/rect.h-576/324)<0.01);c.close();
     });
     console.log(count + ' car tests passed');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
